@@ -1,4 +1,4 @@
-use super::{Config, Configure};
+use super::{Config, Configure, FvWrite};
 use crate::buffer::Buffer;
 use crate::dict::IsFieldDefinition;
 use crate::fix_value::{CheckSum, FixValue};
@@ -207,5 +207,29 @@ where
         V: FixValue<'s>,
     {
         self.set_with(field.tag(), value, settings)
+    }
+}
+
+
+impl<'a, B, C> FvWrite<'a> for EncoderHandle<'a, B, C>
+where
+    B: Buffer,
+    C: Configure,
+{
+    type Key = u32;
+
+    fn set_fv_with_key<'b, T>(&'b mut self, key: &Self::Key, value: T)
+    where
+        T: FixValue<'b>,
+    {
+        self.set_any(*key, value);
+    }
+
+    fn set_fv<'b, V, F>(&'b mut self, field: &F, value: V)
+    where
+        V: FixValue<'b>,
+        F: IsFieldDefinition,
+    {
+        self.set_fv_with_key(&field.tag(), value);
     }
 }

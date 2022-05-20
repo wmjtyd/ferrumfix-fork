@@ -30,6 +30,32 @@ const TEST_MESSAGE_INDICATOR: u32 = 464;
 
 const SENDING_TIME_ACCURACY_PROBLEM: u32 = 10;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MsgSeqNumCounter(pub u64);
+
+impl MsgSeqNumCounter {
+    pub const START: Self = Self(0);
+
+    #[inline]
+    pub fn next(&mut self) -> u64 {
+        self.0 += 1;
+        self.0
+    }
+
+    #[inline]
+    pub fn expected(&self) -> u64 {
+        self.0 + 1
+    }
+}
+
+impl Iterator for MsgSeqNumCounter {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(MsgSeqNumCounter::next(self))
+    }
+}
+
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(enum_as_inner::EnumAsInner))]
 pub enum Response<'a> {
@@ -67,6 +93,18 @@ where
     C: Configure,
     B: Backend,
 {
+    pub fn new(config: Config, backend: B) -> FixConnection<B> {
+        FixConnection {
+            uuid: Uuid::new_v4(),
+            config: config,
+            backend: backend,
+            encoder: Encoder::default(),
+            buffer: vec![],
+            msg_seq_num_inbound: MsgSeqNumCounter::START,
+            msg_seq_num_outbound: MsgSeqNumCounter::START,
+        }
+    }
+
     /// The entry point for a [`FixConnection`].
     async fn start<I, O>(&mut self, mut input: I, mut output: O, mut decoder: DecoderBuffered)
     where
@@ -98,14 +136,14 @@ where
                 .start_message(begin_string, &mut self.buffer, b"A");
             msg.set_fv_with_key(&SENDER_COMP_ID, sender_comp_id);
             msg.set_fv_with_key(&TARGET_COMP_ID, target_comp_id);
-            msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now());
+            msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now().timestamp_millis());
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&ENCRYPT_METHOD, 0);
             msg.set_fv_with_key(&108, heartbeat);
             msg.done()
         };
-        output.write(logon).await.unwrap();
-        self.backend.on_outbound_message(logon).ok();
+        output.write(logon.0).await.unwrap();
+        self.backend.on_outbound_message(logon.0).ok();
         let logon;
         loop {
             let mut input = Pin::new(&mut input);

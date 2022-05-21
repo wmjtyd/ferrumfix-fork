@@ -28,7 +28,6 @@ async fn main() -> io::Result<()> {
    let (reader, writer) = tokio::io::split(tcp_stream);
    fefix::session::FixConnection::new(config, app)
        .start(
-           app,
            reader.compat(),
            writer.compat_write(),
            fix_decoder.buffered(),

@@ -88,12 +88,12 @@ pub struct FixConnection<B, C = Config> {
 }
 
 #[allow(dead_code)]
-impl<C, B> FixConnection<B, C>
+impl<B, C> FixConnection<B, C>
 where
-    C: Configure,
     B: Backend,
+    C: Configure,
 {
-    pub fn new(config: Config, backend: B) -> FixConnection<B> {
+    pub fn new(config: C, backend: B) -> FixConnection<B, C> {
         FixConnection {
             uuid: Uuid::new_v4(),
             config: config,
@@ -209,10 +209,9 @@ pub trait Verify {
 
     fn verify_test_message_indicator(
         &self,
-        msg: &impl RandomFieldAccess<u32>,
-    ) -> Result<(), Self::Error>;
+        msg: Message<&[u8]>) -> Result<(), Self::Error>;
 
-    fn verify_sending_time(&self, msg: &impl RandomFieldAccess<u32>) -> Result<(), Self::Error>;
+    fn verify_sending_time(&self, msg: Message<&[u8]>) -> Result<(), Self::Error>;
 }
 
 impl<'a, B, C, V> FixConnector<'a, B, C, V> for FixConnection<B, C>
@@ -251,46 +250,14 @@ where
     fn heartbeat(&self) -> Duration {
         self.config.heartbeat()
     }
-}
 
-pub struct MessageBuilder {}
-
-pub struct MessageBuiderTuple<'a> {
-    phantom: PhantomData<&'a ()>,
-}
-
-impl<'a> MessageBuiderTuple<'a> {
-    pub fn get(self) -> (EncoderHandle<'a, Vec<u8>>, &'a mut MessageBuilder) {
-        unimplemented!()
+    fn seq_numbers(&self) -> SeqNumbers {
+        todo!()
     }
-}
 
-impl MessageBuilder {
-    pub fn start_message(&mut self, begin_string: &[u8], msg_type: &[u8]) -> MessageBuiderTuple {
-        unimplemented!()
+    fn msg_seq_num(&mut self) -> &mut MsgSeqNumCounter {
+        todo!()
     }
-}
-
-struct ResponseData<'a> {
-    pub begin_stringt: &'a [u8],
-    pub msg_type: &'a [u8],
-    pub msg_seq_num: u32,
-}
-
-pub trait FixConnector<'a, B, C, Z>
-where
-    B: Backend,
-    C: Configure,
-    Z: Verify,
-{
-    type Error: FixValue<'a>;
-    type Msg: FvWrite<'a>;
-
-    fn target_comp_id(&self) -> &[u8];
-
-    fn sender_comp_id(&self) -> &[u8];
-
-    fn verifier(&self) -> &Z;
 
     fn dispatch_by_msg_type(&self, msg_type: &[u8], msg: Message<&[u8]>) -> Response {
         match msg_type {
@@ -306,7 +273,7 @@ where
                 return Response::None;
             }
             b"5" => {
-                return Response::OutboundBytes(self.on_logout(&msg));
+                return Response::OutboundBytes(self.on_logout(msg));
             }
             b"0" => {
                 self.on_heartbeat(msg);
@@ -318,20 +285,6 @@ where
         }
     }
 
-    /// Callback for processing incoming FIX application messages.
-    fn on_inbound_app_message(&mut self, message: Message<&[u8]>) -> Result<(), Self::Error>;
-
-    /// Callback for post-processing outbound FIX messages.
-    fn on_outbound_message(&mut self, message: &[u8]) -> Result<(), Self::Error>;
-
-    fn environment(&self) -> Environment;
-
-    fn heartbeat(&self) -> Duration;
-
-    fn seq_numbers(&self) -> SeqNumbers;
-
-    fn msg_seq_num(&mut self) -> &mut MsgSeqNumCounter;
-
     fn on_inbound_message(
         &'a mut self,
         msg: Message<&[u8]>,
@@ -340,6 +293,7 @@ where
         if self.verifier().verify_test_message_indicator(msg).is_err() {
             return self.on_wrong_environment(msg);
         }
+
         let seq_num = if let Ok(n) = msg.fv::<u64>(&MSG_SEQ_NUM) {
             let expected = self.msg_seq_num_inbound.expected();
             if n < expected {
@@ -388,16 +342,6 @@ where
         fix_message
     }
 
-    //    fn add_seqnum(&self, msg: &mut RawEncoderState) {
-    //        msg.add_field(tags::MSG_SEQ_NUM, self.seq_numbers().next_outbound());
-    //        self.seq_numbers_mut().incr_outbound();
-    //    }
-    //
-    //    fn add_sending_time(&self, msg: &mut RawEncoderState) {
-    //        msg.add_field(tags::SENDING_TIME, DtfTimestamp::utc_now());
-    //    }
-    //
-    //    #[must_use]
     fn on_heartbeat_is_due(&mut self) -> &[u8] {
         let fix_message = {
             let begin_string = self.begin_string();
@@ -546,6 +490,128 @@ where
     fn on_application_message(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a> {
         Response::Application(msg)
     }
+}
+
+pub struct MessageBuilder {}
+
+pub struct MessageBuiderTuple<'a> {
+    phantom: PhantomData<&'a ()>,
+}
+
+impl<'a> MessageBuiderTuple<'a> {
+    pub fn get(self) -> (EncoderHandle<'a, Vec<u8>>, &'a mut MessageBuilder) {
+        unimplemented!()
+    }
+}
+
+impl MessageBuilder {
+    pub fn start_message(&mut self, begin_string: &[u8], msg_type: &[u8]) -> MessageBuiderTuple {
+        unimplemented!()
+    }
+}
+
+struct ResponseData<'a> {
+    pub begin_stringt: &'a [u8],
+    pub msg_type: &'a [u8],
+    pub msg_seq_num: u32,
+}
+
+pub trait FixConnector<'a, B, C, V>
+where
+    B: Backend,
+    C: Configure,
+    V: Verify,
+{
+    type Error: FixValue<'a>;
+    type Msg: FvWrite<'a>;
+
+    fn target_comp_id(&self) -> &[u8];
+
+    fn sender_comp_id(&self) -> &[u8];
+
+    fn verifier(&self) -> V;
+
+    fn dispatch_by_msg_type(&self, msg_type: &[u8], msg: Message<&[u8]>) -> Response;
+
+    /// Callback for processing incoming FIX application messages.
+    fn on_inbound_app_message(&mut self, message: Message<&[u8]>) -> Result<(), Self::Error>;
+
+    /// Callback for post-processing outbound FIX messages.
+    fn on_outbound_message(&mut self, message: &[u8]) -> Result<(), Self::Error>;
+
+    fn environment(&self) -> Environment;
+
+    fn heartbeat(&self) -> Duration;
+
+    fn seq_numbers(&self) -> SeqNumbers;
+
+    fn msg_seq_num(&mut self) -> &mut MsgSeqNumCounter;
+
+    fn on_inbound_message(
+        &'a mut self,
+        msg: Message<&[u8]>,
+        builder: MessageBuilder,
+    ) -> Response<'a> ;
+
+    fn on_resend_request(&self, msg: &Message<&[u8]>) {
+        let begin_seq_num = msg.fv(&BEGIN_SEQ_NO).unwrap();
+        let end_seq_num = msg.fv(&END_SEQ_NO).unwrap();
+        self.on_resend_request(begin_seq_num..end_seq_num).ok();
+    }
+
+    fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8] ;
+
+    //    fn add_seqnum(&self, msg: &mut RawEncoderState) {
+    //        msg.add_field(tags::MSG_SEQ_NUM, self.seq_numbers().next_outbound());
+    //        self.seq_numbers_mut().incr_outbound();
+    //    }
+    //
+    //    fn add_sending_time(&self, msg: &mut RawEncoderState) {
+    //        msg.add_field(tags::SENDING_TIME, DtfTimestamp::utc_now());
+    //    }
+    //
+    //    #[must_use]
+    fn on_heartbeat_is_due(&mut self) -> &[u8];
+
+    fn set_sender_and_target(&'a self, msg: &mut impl FvWrite<'a, Key = u32>);
+
+    fn set_sending_time(&'a self, msg: &mut impl FvWrite<'a, Key = u32>);
+
+    fn set_header_details(&'a self, _msg: &mut impl FvWrite<'a, Key = u32>) {}
+
+    fn on_heartbeat(&mut self, _msg: Message<&[u8]>);
+
+    fn on_test_request(&mut self, msg: Message<&[u8]>) -> &[u8];
+
+    fn on_wrong_environment(&mut self, _message: Message<&[u8]>) -> Response ;
+    fn generate_error_seqnum_too_low(&mut self) -> &[u8] ;
+
+    fn on_missing_seqnum(&mut self, _message: Message<&[u8]>) -> Response {
+        self.make_logout(errs::missing_field("MsgSeqNum", MSG_SEQ_NUM))
+    }
+
+    fn on_low_seqnum(&mut self, _message: Message<&[u8]>) -> Response ;
+
+    fn on_reject(
+        &mut self,
+        _ref_seq_num: u64,
+        ref_tag: Option<u32>,
+        ref_msg_type: Option<&[u8]>,
+        reason: u32,
+        err_text: String,
+    ) -> Response ;
+
+    fn make_reject_for_inaccurate_sending_time(&mut self, offender: Message<&[u8]>) -> Response ;
+
+    fn make_logout(&mut self, text: String) -> Response ;
+
+    fn make_resend_request(&mut self, start: u64, end: u64) -> Response ;
+
+    fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response ;
+
+    fn on_logon(&mut self, _logon: Message<&[u8]>) ;
+
+    fn on_application_message(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a> ;
 }
 
 //fn add_time_to_msg(mut msg: EncoderHandle) {

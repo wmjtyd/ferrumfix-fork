@@ -333,7 +333,10 @@ where
     fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8] {
         let fix_message = {
             let msg_seq_num = self.next();
-            let mut msg = self.start_message(data.begin_string, b"5");
+            let begin_string = self.config.begin_string();
+            let mut msg = self
+                .encoder
+                .start_message(begin_string, &mut self.buffer, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, "Logout");
@@ -344,7 +347,7 @@ where
 
     fn on_heartbeat_is_due(&mut self) -> &[u8] {
         let fix_message = {
-            let begin_string = self.begin_string();
+            let begin_string = self.config.begin_string();
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let mut msg = self
                 .encoder
@@ -363,7 +366,7 @@ where
     }
 
     fn set_sending_time(&'a self, msg: &mut impl FvWrite<'a, Key = u32>) {
-        msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now());
+        msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now().timestamp_millis());
     }
 
     fn set_header_details(&'a self, _msg: &mut impl FvWrite<'a, Key = u32>) {}
@@ -374,9 +377,10 @@ where
 
     fn on_test_request(&mut self, msg: Message<&[u8]>) -> &[u8] {
         let test_req_id = msg.fv::<&[u8]>(&TEST_REQ_ID).unwrap();
-        let begin_string = self.begin_string();
+        let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
-        let mut msg = self.start_message(begin_string, b"1");
+        let mut msg = self
+        .encoder.start_message(begin_string, &mut self.buffer, b"1");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         self.set_sending_time(&mut msg);
@@ -389,10 +393,11 @@ where
     }
 
     fn generate_error_seqnum_too_low(&mut self) -> &[u8] {
-        let begin_string = self.begin_string();
+        let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let text = errs::msg_seq_num(self.msg_seq_num_inbound.0 + 1);
-        let mut msg = self.start_message(begin_string, b"FIXME");
+        let mut msg = self
+        .encoder.start_message(begin_string, &mut self.buffer, b"FIXME");
         msg.set_fv_with_key(&MSG_TYPE, "5");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -416,11 +421,12 @@ where
         reason: u32,
         err_text: String,
     ) -> Response {
-        let begin_string = self.begin_string();
+        let begin_string = self.config.begin_string();
         let sender_comp_id = self.sender_comp_id();
         let target_comp_id = self.target_comp_id();
         let msg_seq_num = self.msg_seq_num_outbound.next();
-        let mut msg = self.start_message(begin_string, b"3");
+        let mut msg = self
+        .encoder.start_message(begin_string, &mut self.buffer, b"3");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         if let Some(ref_tag) = ref_tag {
@@ -448,11 +454,12 @@ where
 
     fn make_logout(&mut self, text: String) -> Response {
         let fix_message = {
-            let begin_string = self.begin_string();
+            let begin_string = self.config.begin_string();
             let sender_comp_id = self.sender_comp_id();
             let target_comp_id = self.target_comp_id();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let mut msg = self.start_message(begin_string, b"5");
+            let mut msg = self
+            .encoder.start_message(begin_string, &mut self.buffer, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, text.as_str());
@@ -463,8 +470,9 @@ where
     }
 
     fn make_resend_request(&mut self, start: u64, end: u64) -> Response {
-        let begin_string = self.begin_string();
-        let mut msg = self.start_message(begin_string, b"2");
+        let begin_string = self.config.begin_string();
+        let mut msg = self
+        .encoder.start_message(begin_string, &mut self.buffer, b"2");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_seqnum(msg);
@@ -480,8 +488,9 @@ where
     }
 
     fn on_logon(&mut self, _logon: Message<&[u8]>) {
-        let begin_string = self.begin_string();
-        let mut _msg = self.start_message(begin_string, b"A");
+        let begin_string = self.config.begin_string();
+        let mut msg = self
+        .encoder.start_message(begin_string, &mut self.buffer, b"A");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_sending_time(msg);
@@ -553,11 +562,7 @@ where
         builder: MessageBuilder,
     ) -> Response<'a> ;
 
-    fn on_resend_request(&self, msg: &Message<&[u8]>) {
-        let begin_seq_num = msg.fv(&BEGIN_SEQ_NO).unwrap();
-        let end_seq_num = msg.fv(&END_SEQ_NO).unwrap();
-        self.on_resend_request(begin_seq_num..end_seq_num).ok();
-    }
+    fn on_resend_request(&self, msg: &Message<&[u8]>) ;
 
     fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8] ;
 

@@ -3,7 +3,10 @@
 # and commit this file to your remote git repository to share the goodness with others.
 
 tasks:
-  - init: cargo build
+  - init: |
+      cargo check
+      cargo clippy
+      cargo build
 vscode:
   extensions:
     - "Zerotaskx.rust-extension-pack"

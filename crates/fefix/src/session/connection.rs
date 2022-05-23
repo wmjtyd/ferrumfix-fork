@@ -190,9 +190,13 @@ where
                     return;
                 }
                 LlEvent::Heartbeat => {
-                    let heartbeat = self.on_heartbeat_is_due();
-                    output.write_all(heartbeat).await.unwrap();
-                    self.on_outbound_message(heartbeat).ok();
+                    // Clone it to workaround mutable issue.
+                    let heartbeat = self.on_heartbeat_is_due()
+                        .iter()
+                        .map(|x| *x)
+                        .collect::<Vec<u8>>();
+                    output.write_all(&heartbeat).await.unwrap();
+                    self.on_outbound_message(&heartbeat).ok();
                 }
                 LlEvent::Logout => {}
                 LlEvent::TestRequest => {}

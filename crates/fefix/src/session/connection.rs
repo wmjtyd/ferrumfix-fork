@@ -1,10 +1,9 @@
 use super::{errs, Backend, Config, Configure, LlEvent, LlEventLoop};
 use crate::session::{Environment, SeqNumbers};
+use crate::random_field_access::RandomFieldAccess;
 use crate::tagvalue::FvWrite;
 use crate::tagvalue::Message;
-use crate::tagvalue::RandomFieldAccess;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
-use crate::Buffer;
 use crate::FixValue;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use std::marker::{PhantomData, Unpin};

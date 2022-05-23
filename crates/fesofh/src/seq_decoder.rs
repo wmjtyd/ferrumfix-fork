@@ -58,23 +58,16 @@ impl SeqDecoder {
             Err(Error::Incomplete { needed }) => {
                 self.buffer.resize(self.buffer.as_slice().len() + needed, 0);
                 Ok(&mut self.buffer.as_mut_slice()[self.buffer_actual_len..])
-            },
-            other => other,
+            }
+            Err(e) => Err(e),
         }
     }
 
-    /// Attempts decoding. Returns `Ok(())` if a [`Frame`] is ready, otherwise an `Err`.
-    pub fn attempt_decoding(&mut self) -> FesofhResult<()> {
-        let slice = &self.buffer.as_slice()[..self.buffer_actual_len];
-        let decode_result = Frame::<&[u8]>::deserialize(slice)?;
-        
-        Ok(())
-    }
-
-    /// Returns the current [`Frame`]
+    /// Returns the current [`Frame`] if it is ready; otherwise, return a [`Error`].
     pub fn raw_frame(&self) -> FesofhResult<Frame<&[u8]>> {
         let slice = &self.buffer.as_slice()[..self.buffer_actual_len];
         let decode_result = Frame::<&[u8]>::deserialize(slice)?;
+
         Ok(decode_result)
     }
 
@@ -91,19 +84,24 @@ impl SeqDecoder {
 }
 
 #[derive(Debug)]
-pub struct Frames<R> {
+pub struct Frames<R>
+where
+    R: std::io::Read,
+{
     decoder: SeqDecoder,
     reader: R,
 }
 
-impl<R> Frames<R> {
-    fn internal_next(&mut self) -> Result<Frame<Vec<u8>>, Error> {
-        let buffer = self.decoder.supply_buffer()?;
-
+impl<R> Frames<R>
+where
+    R: std::io::Read,
+{
+    fn internal_next(&mut self) -> Result<Option<Frame<Vec<u8>>>, Error> {
+        let mut buffer = self.decoder.supply_buffer()?;
         self.reader.read(&mut buffer)?;
-        self.decoder.attempt_decoding()?;
 
-        Ok(Some(self.decoder.raw_frame().to_owned()))
+        let frame = self.decoder.raw_frame()?;
+        Ok(Some(frame.to_owned()))
     }
 }
 

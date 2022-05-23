@@ -230,6 +230,6 @@ where
         V: FixValue<'b>,
         F: IsFieldDefinition,
     {
-        self.set_fv_with_key(&field.tag(), value);
+        self.set_fv_with_key(&(field.tag().get() as u32), value);
     }
 }

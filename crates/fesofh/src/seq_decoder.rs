@@ -97,8 +97,8 @@ where
     R: std::io::Read,
 {
     fn internal_next(&mut self) -> Result<Option<Frame<Vec<u8>>>, Error> {
-        let mut buffer = self.decoder.supply_buffer()?;
-        self.reader.read(&mut buffer)?;
+        let buffer = self.decoder.supply_buffer()?;
+        self.reader.read_exact(buffer)?;
 
         let frame = self.decoder.raw_frame()?;
         Ok(Some(frame.to_owned()))

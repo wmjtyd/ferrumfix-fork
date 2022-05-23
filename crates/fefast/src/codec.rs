@@ -138,7 +138,7 @@ impl Codec for String {
     }
 }
 
-fn _serialize_bitvec(bits: &BitSlice<Msb0, u8>, output: &mut impl io::Write) -> io::Result<usize> {
+fn _serialize_bitvec(bits: &BitSlice<u8, Msb0>, output: &mut impl io::Write) -> io::Result<usize> {
     let significant_data_bits_per_byte = bits.chunks_exact(7);
     let mut i = 0;
     let remaineder = significant_data_bits_per_byte.remainder().load::<u8>();
@@ -161,7 +161,7 @@ pub struct PresenceMap {
 }
 
 impl PresenceMap {
-    pub fn bits(&self) -> impl Iterator<Item = &bool> {
+    pub fn bits(&self) -> impl Iterator<Item = BitRef<'_>> {
         self.bits.iter()
     }
 }

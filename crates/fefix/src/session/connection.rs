@@ -239,10 +239,11 @@ impl Verify for MockedVerifyImplementation {
         unimplemented!()
     }
 }
+
+impl<'a, B, C> FixConnector<'a, B, C> for FixConnection<B, C>
 where
     B: Backend,
     C: Configure,
-    V: Verify,
 {
     type Error = &'a [u8];
     type Msg = EncoderHandle<'a, Vec<u8>>;
@@ -255,7 +256,7 @@ where
         Ok(())
     }
 
-    fn verifier(&self) -> V {
+    fn verifier(&self) -> MockedVerifyImplementation /* FIXME */ {
         unimplemented!()
     }
 
@@ -549,7 +550,7 @@ struct ResponseData<'a> {
     pub msg_seq_num: u32,
 }
 
-pub trait FixConnector<'a, B, C, V>
+pub trait FixConnector<'a, B, C, V = MockedVerifyImplementation>
 where
     B: Backend,
     C: Configure,

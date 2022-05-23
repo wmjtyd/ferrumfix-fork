@@ -367,7 +367,7 @@ where
             msg.set_fv_with_key(&TEXT, "Logout");
             msg.done()
         };
-        fix_message
+        fix_message.0
     }
 
     fn on_heartbeat_is_due(&mut self) -> &[u8] {
@@ -382,7 +382,7 @@ where
             self.set_sending_time(&mut msg);
             msg.done()
         };
-        fix_message
+        fix_message.0
     }
 
     fn set_sender_and_target(&'a self, msg: &mut impl FvWrite<'a, Key = u32>) {
@@ -410,7 +410,7 @@ where
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         self.set_sending_time(&mut msg);
         msg.set_fv_with_key(&TEST_REQ_ID, test_req_id);
-        msg.done()
+        msg.done().0
     }
 
     fn on_wrong_environment(&mut self, _message: Message<&[u8]>) -> Response {
@@ -427,7 +427,7 @@ where
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         msg.set_fv_with_key(&TEXT, text.as_str());
-        msg.done()
+        msg.done().0
     }
 
     fn on_missing_seqnum(&mut self, _message: Message<&[u8]>) -> Response {
@@ -491,7 +491,7 @@ where
             self.set_sending_time(&mut msg);
             msg.done()
         };
-        Response::OutboundBytes(fix_message)
+        Response::OutboundBytes(fix_message.0)
     }
 
     fn make_resend_request(&mut self, start: u64, end: u64) -> Response {
@@ -503,7 +503,7 @@ where
         //self.add_seqnum(msg);
         msg.set_fv_with_key(&BEGIN_SEQ_NO, start);
         msg.set_fv_with_key(&END_SEQ_NO, end);
-        Response::OutboundBytes(msg.done())
+        Response::OutboundBytes(msg.done().0)
     }
 
     fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response {

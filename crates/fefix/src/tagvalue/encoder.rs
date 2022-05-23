@@ -221,8 +221,7 @@ where
     where
         T: FixValue<'b>,
     {
-        todo!()
-        // self.set_fv(key, value);
+        self.set_with(*key, value, T::SerializeSettings::default());
     }
 
     fn set_fv<'b, V, F>(&'b mut self, field: &F, value: V)

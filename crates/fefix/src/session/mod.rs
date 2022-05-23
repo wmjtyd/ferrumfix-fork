@@ -7,7 +7,7 @@
 
 pub mod backends;
 mod config;
-mod connection; // FIXME
+// mod connection; // FIXME: need to rewrite
 mod environment;
 mod errs;
 mod event_loop;
@@ -16,7 +16,7 @@ mod resend_request_range;
 mod seq_numbers;
 
 pub use config::{Config, Configure};
-pub use connection::*; // FIXME
+// pub use connection::*; // FIXME: need to rewrite
 pub use environment::Environment;
 pub use event_loop::*;
 pub use heartbeat_rule::HeartbeatRule;

@@ -336,7 +336,7 @@ where
         // Increment immediately.
         self.msg_seq_num_inbound.next();
 
-        if self.verifier().verify_sending_time(&msg).is_err() {
+        if self.verifier().verify_sending_time(msg).is_err() {
             return self.make_reject_for_inaccurate_sending_time(msg);
         }
 
@@ -350,8 +350,8 @@ where
     }
 
     fn on_resend_request(&self, msg: &Message<&[u8]>) {
-        let begin_seq_num = msg.fv(&BEGIN_SEQ_NO).unwrap();
-        let end_seq_num = msg.fv(&END_SEQ_NO).unwrap();
+        let begin_seq_num = msg.fv(BEGIN_SEQ_NO).unwrap();
+        let end_seq_num = msg.fv(END_SEQ_NO).unwrap();
         self.on_resend_request(begin_seq_num..end_seq_num).ok();
     }
 
@@ -507,7 +507,7 @@ where
     }
 
     fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response {
-        let msg_seq_num = msg.fv(&MSG_SEQ_NUM).unwrap();
+        let msg_seq_num = msg.fv(MSG_SEQ_NUM).unwrap();
         self.make_resend_request(self.seq_numbers().next_inbound(), msg_seq_num);
         todo!()
     }

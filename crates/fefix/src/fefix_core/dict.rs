@@ -988,10 +988,7 @@ mod datatype {
         /// assert_eq!(FixDatatype::Price.is_base_type(), false);
         /// ```
         pub fn is_base_type(&self) -> bool {
-            match self {
-                Self::Char | Self::Float | Self::Int | Self::String => true,
-                _ => false,
-            }
+            matches!(self, Self::Char | Self::Float | Self::Int | Self::String)
         }
 
         /// Returns the primitive [`Datatype`](super::Datatype) from which `self` is derived. If

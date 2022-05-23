@@ -221,7 +221,8 @@ where
     where
         T: FixValue<'b>,
     {
-        self.set_any(*key, value);
+        todo!()
+        // self.set_fv(key, value);
     }
 
     fn set_fv<'b, V, F>(&'b mut self, field: &F, value: V)

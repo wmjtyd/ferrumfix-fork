@@ -349,7 +349,7 @@ where
     fn on_resend_request(&self, msg: &Message<&[u8]>) {
         let begin_seq_num = msg.fv(BEGIN_SEQ_NO).unwrap();
         let end_seq_num = msg.fv(END_SEQ_NO).unwrap();
-        self.on_resend_request(begin_seq_num..end_seq_num).ok();
+        self.make_resend_request(begin_seq_num, end_seq_num);
     }
 
     fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8] {

@@ -201,7 +201,7 @@ mod test {
         for slice in data.iter() {
             assert_eq!((&slice[..]).serialize(&mut buffer), slice.len());
         }
-        &buffer[..] == &data.iter().flatten().copied().collect::<Vec<u8>>()[..]
+        buffer[..] == data.iter().flatten().copied().collect::<Vec<u8>>()[..]
     }
 
     #[quickcheck]

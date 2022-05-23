@@ -227,7 +227,7 @@ mod test {
 
     #[quickcheck]
     fn to_yyyymmdd_to_bytes_are_the_same(date: Date) -> bool {
-        date.to_yyyymmdd() == &FixValue::to_bytes(&date)[..]
+        date.to_yyyymmdd() == FixValue::to_bytes(&date)[..]
     }
 
     #[test]

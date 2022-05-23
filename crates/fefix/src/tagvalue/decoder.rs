@@ -373,7 +373,7 @@ impl<'a, T> Message<'a, T> {
     /// ```
     pub fn fields(&'a self) -> Fields<'a, T> {
         Fields {
-            message: &self,
+            message: self,
             i: 0,
         }
     }

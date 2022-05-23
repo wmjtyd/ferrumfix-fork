@@ -429,7 +429,7 @@ impl Dictionary {
         self.inner
             .messages
             .iter()
-            .map(move |data| Message(&self, data))
+            .map(move |data| Message(self, data))
     }
 
     /// Returns an [`Iterator`] over this [`Dictionary`]'s categories. Items are
@@ -438,13 +438,13 @@ impl Dictionary {
         self.inner
             .categories
             .iter()
-            .map(move |data| Category(&self, data))
+            .map(move |data| Category(self, data))
     }
 
     /// Returns an [`Iterator`] over this [`Dictionary`]'s fields. Items are
     /// in no particular order.
     pub fn iter_fields(&self) -> impl Iterator<Item = Field> {
-        self.inner.fields.iter().map(move |data| Field(&self, data))
+        self.inner.fields.iter().map(move |data| Field(self, data))
     }
 
     /// Returns an [`Iterator`] over this [`Dictionary`]'s components. Items are in
@@ -453,7 +453,7 @@ impl Dictionary {
         self.inner
             .components
             .iter()
-            .map(move |data| Component(&self, data))
+            .map(move |data| Component(self, data))
     }
 }
 

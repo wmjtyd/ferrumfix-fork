@@ -319,7 +319,7 @@ where
             return self.on_wrong_environment(msg);
         }
 
-        let seq_num = if let Ok(n) = msg.fv::<u64>(&MSG_SEQ_NUM) {
+        let seq_num = if let Ok(n) = msg.fv(MSG_SEQ_NUM) {
             let expected = self.msg_seq_num_inbound.expected();
             if n < expected {
                 return self.on_low_seqnum(msg);
@@ -340,7 +340,7 @@ where
             return self.make_reject_for_inaccurate_sending_time(msg);
         }
 
-        let msg_type = if let Ok(x) = msg.fv::<&[u8]>(&MSG_TYPE) {
+        let msg_type = if let Ok(x) = msg.fv(MSG_TYPE) {
             x
         } else {
             self.on_inbound_app_message(msg).ok();

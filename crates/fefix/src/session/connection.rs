@@ -95,8 +95,8 @@ where
     pub fn new(config: C, backend: B) -> FixConnection<B, C> {
         FixConnection {
             uuid: Uuid::new_v4(),
-            config: config,
-            backend: backend,
+            config,
+            backend,
             encoder: Encoder::default(),
             buffer: vec![],
             msg_seq_num_inbound: MsgSeqNumCounter::START,

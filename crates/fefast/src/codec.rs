@@ -179,9 +179,17 @@ impl Codec for PresenceMap {
             input.read_exact(&mut buffer[..])?;
             let byte = buffer[0];
             stop_bit = byte >= STOP_BYTE;
+            
             if !stop_bit {
+                // We will push 9 elements.
+                self.bits.reserve(9);
                 self.bits.push(byte >> 7 == 1);
+            } else {
+                // We will push only 8 elements
+                // (no need to push byte >> 7 == 1).
+                self.bits.reserve(8);
             }
+
             self.bits.push((byte >> 6) & 1 == 1);
             self.bits.push((byte >> 5) & 1 == 1);
             self.bits.push((byte >> 4) & 1 == 1);
@@ -189,7 +197,7 @@ impl Codec for PresenceMap {
             self.bits.push((byte >> 3) & 1 == 1);
             self.bits.push((byte >> 2) & 1 == 1);
             self.bits.push((byte >> 1) & 1 == 1);
-            self.bits.push((byte >> 0) & 1 == 1);
+            self.bits.push( byte       & 1 == 1);
         }
         Ok(self.bits.len())
     }

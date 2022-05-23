@@ -63,7 +63,7 @@ pub enum Error {
         needed: usize,
     },
     /// I/O-related error.
-    #[error("I/O related error.")]
+    #[error("I/O error: {0}")]
     Io(#[from] io::Error),
 }
 

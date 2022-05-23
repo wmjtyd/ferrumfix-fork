@@ -93,5 +93,4 @@ pub trait FvWrite<'a> {
         F: IsFieldDefinition;
 }
 
-pub trait RandomFieldAccess<u32> {
-}
+pub trait RandomFieldAccess<T: u32> {}

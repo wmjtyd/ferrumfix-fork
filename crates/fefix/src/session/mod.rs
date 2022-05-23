@@ -98,7 +98,7 @@ impl MsgSeqNumCounter {
     pub const START: Self = Self(0);
 
     #[inline]
-    pub fn next(&mut self) -> u64 {
+    fn internal_next(&mut self) -> u64 {
         self.0 += 1;
         self.0
     }
@@ -113,7 +113,7 @@ impl Iterator for MsgSeqNumCounter {
     type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(MsgSeqNumCounter::next(self))
+        Some(MsgSeqNumCounter::internal_next(self))
     }
 }
 

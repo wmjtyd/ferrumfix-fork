@@ -137,15 +137,19 @@ mod test {
 
     #[quickcheck]
     fn config_set_max_allowed_latency(latency: Duration) -> bool {
-        let mut config = Config::default();
-        config.max_allowed_latency = latency;
+        let config = Config {
+            max_allowed_latency: latency,
+            ..Default::default()
+        };
         config.max_allowed_latency() == latency
     }
 
     #[quickcheck]
     fn config_set_verify_test_indicator(verify: bool) -> bool {
-        let mut config = Config::default();
-        config.verify_test_indicator = verify;
+        let config = Config {
+            verify_test_indicator: verify,
+            ..Default::default()
+        };
         config.verify_test_indicator() == verify
     }
 }

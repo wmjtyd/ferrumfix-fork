@@ -697,7 +697,7 @@ mod test {
     ];
 
     fn with_soh(msg: &str) -> String {
-        msg.split("|").collect::<Vec<&str>>().join("\x01")
+        msg.split('|').collect::<Vec<&str>>().join("\x01")
     }
 
     fn decoder() -> Decoder<Config> {

@@ -647,7 +647,7 @@ impl<'a> Component<'a> {
 }
 
 /// Component type (FIXML-specific information).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum FixmlComponentAttributes {
     Xml,
@@ -659,7 +659,7 @@ pub enum FixmlComponentAttributes {
     Message,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct DatatypeData {
     /// **Primary key.** Identifier of the datatype.
     datatype: FixDatatype,
@@ -1409,7 +1409,7 @@ impl<'a> Message<'a> {
 /// A [`Section`] is a collection of many [`Component`]-s. It has no practical
 /// effect on encoding and decoding of FIX data and it's only used for
 /// documentation and human readability.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Section {}
 
 mod symbol_table {
@@ -1511,7 +1511,7 @@ mod quickfix {
 
     impl<'a> QuickFixReader<'a> {
         pub fn new(xml_document: &'a roxmltree::Document<'a>) -> ParseResult<Dictionary> {
-            let mut reader = Self::empty(&xml_document)?;
+            let mut reader = Self::empty(xml_document)?;
             for child in reader.node_with_fields.children() {
                 if child.is_element() {
                     import_field(&mut reader.builder, child)?;
@@ -1558,17 +1558,17 @@ mod quickfix {
             };
             let version_type = root
                 .attribute("type")
-                .ok_or(ParseDictionaryError::InvalidData(
+                .ok_or_else(|| ParseDictionaryError::InvalidData(
                     "No version attribute.".to_string(),
                 ))?;
             let version_major =
                 root.attribute("major")
-                    .ok_or(ParseDictionaryError::InvalidData(
+                    .ok_or_else(|| ParseDictionaryError::InvalidData(
                         "No major version attribute.".to_string(),
                     ))?;
             let version_minor =
                 root.attribute("minor")
-                    .ok_or(ParseDictionaryError::InvalidData(
+                    .ok_or_else(|| ParseDictionaryError::InvalidData(
                         "No minor version attribute.".to_string(),
                     ))?;
             let version_sp = root.attribute("servicepack").unwrap_or("0");

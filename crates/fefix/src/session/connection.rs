@@ -462,7 +462,7 @@ where
         }
         msg.set_fv_with_key(&SESSION_REJECT_REASON, reason);
         msg.set_fv_with_key(&TEXT, err_text.as_str());
-        Response::OutboundBytes(msg.done())
+        Response::OutboundBytes(msg.done().0)
     }
 
     fn make_reject_for_inaccurate_sending_time(&mut self, offender: Message<&[u8]>) -> Response {

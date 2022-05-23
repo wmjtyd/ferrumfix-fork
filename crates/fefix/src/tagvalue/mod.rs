@@ -79,7 +79,6 @@ pub enum DecodeError {
     IO(#[from] std::io::Error),
 }
 
-
 pub trait FvWrite<'a> {
     type Key;
 

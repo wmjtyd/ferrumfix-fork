@@ -1,6 +1,6 @@
 use super::{errs, Backend, Config, Configure, LlEvent, LlEventLoop};
-use crate::session::{Environment, SeqNumbers};
 use crate::random_field_access::RandomFieldAccess;
+use crate::session::{Environment, SeqNumbers};
 use crate::tagvalue::FvWrite;
 use crate::tagvalue::Message;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
@@ -191,7 +191,8 @@ where
                 }
                 LlEvent::Heartbeat => {
                     // Clone it to workaround mutable issue.
-                    let heartbeat = self.on_heartbeat_is_due()
+                    let heartbeat = self
+                        .on_heartbeat_is_due()
                         .iter()
                         .map(|x| *x)
                         .collect::<Vec<u8>>();
@@ -210,15 +211,13 @@ pub trait Verify {
 
     fn verify_begin_string(&self, begin_string: &[u8]) -> Result<(), Self::Error>;
 
-    fn verify_test_message_indicator(
-        &self,
-        msg: Message<&[u8]>) -> Result<(), Self::Error>;
+    fn verify_test_message_indicator(&self, msg: Message<&[u8]>) -> Result<(), Self::Error>;
 
     fn verify_sending_time(&self, msg: Message<&[u8]>) -> Result<(), Self::Error>;
 }
 
 /// The mocked [`Verify`] implementation.
-/// 
+///
 /// This implementation is used for testing.
 pub struct MockedVerifyImplementation;
 
@@ -229,9 +228,7 @@ impl Verify for MockedVerifyImplementation {
         unimplemented!()
     }
 
-    fn verify_test_message_indicator(
-        &self,
-        _msg: Message<&[u8]>) -> Result<(), Self::Error> {
+    fn verify_test_message_indicator(&self, _msg: Message<&[u8]>) -> Result<(), Self::Error> {
         unimplemented!()
     }
 
@@ -405,7 +402,8 @@ where
         let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"1");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"1");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         self.set_sending_time(&mut msg);
@@ -422,7 +420,8 @@ where
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let text = errs::msg_seq_num(self.msg_seq_num_inbound.0 + 1);
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"FIXME");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"FIXME");
         msg.set_fv_with_key(&MSG_TYPE, "5");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -451,7 +450,8 @@ where
         let target_comp_id = self.target_comp_id();
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"3");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"3");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         if let Some(ref_tag) = ref_tag {
@@ -484,7 +484,8 @@ where
             let target_comp_id = self.target_comp_id();
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let mut msg = self
-            .encoder.start_message(begin_string, &mut self.buffer, b"5");
+                .encoder
+                .start_message(begin_string, &mut self.buffer, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, text.as_str());
@@ -497,7 +498,8 @@ where
     fn make_resend_request(&mut self, start: u64, end: u64) -> Response {
         let begin_string = self.config.begin_string();
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"2");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"2");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_seqnum(msg);
@@ -515,7 +517,8 @@ where
     fn on_logon(&mut self, _logon: Message<&[u8]>) {
         let begin_string = self.config.begin_string();
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"A");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"A");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_sending_time(msg);
@@ -585,11 +588,11 @@ where
         &'a mut self,
         msg: Message<&[u8]>,
         builder: MessageBuilder,
-    ) -> Response<'a> ;
+    ) -> Response<'a>;
 
-    fn on_resend_request(&self, msg: &Message<&[u8]>) ;
+    fn on_resend_request(&self, msg: &Message<&[u8]>);
 
-    fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8] ;
+    fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8];
 
     //    fn add_seqnum(&self, msg: &mut RawEncoderState) {
     //        msg.add_field(tags::MSG_SEQ_NUM, self.seq_numbers().next_outbound());
@@ -613,14 +616,14 @@ where
 
     fn on_test_request(&mut self, msg: Message<&[u8]>) -> &[u8];
 
-    fn on_wrong_environment(&mut self, _message: Message<&[u8]>) -> Response ;
-    fn generate_error_seqnum_too_low(&mut self) -> &[u8] ;
+    fn on_wrong_environment(&mut self, _message: Message<&[u8]>) -> Response;
+    fn generate_error_seqnum_too_low(&mut self) -> &[u8];
 
     fn on_missing_seqnum(&mut self, _message: Message<&[u8]>) -> Response {
         self.make_logout(errs::missing_field("MsgSeqNum", MSG_SEQ_NUM))
     }
 
-    fn on_low_seqnum(&mut self, _message: Message<&[u8]>) -> Response ;
+    fn on_low_seqnum(&mut self, _message: Message<&[u8]>) -> Response;
 
     fn on_reject(
         &mut self,
@@ -629,19 +632,19 @@ where
         ref_msg_type: Option<&[u8]>,
         reason: u32,
         err_text: String,
-    ) -> Response ;
+    ) -> Response;
 
-    fn make_reject_for_inaccurate_sending_time(&mut self, offender: Message<&[u8]>) -> Response ;
+    fn make_reject_for_inaccurate_sending_time(&mut self, offender: Message<&[u8]>) -> Response;
 
-    fn make_logout(&mut self, text: String) -> Response ;
+    fn make_logout(&mut self, text: String) -> Response;
 
-    fn make_resend_request(&mut self, start: u64, end: u64) -> Response ;
+    fn make_resend_request(&mut self, start: u64, end: u64) -> Response;
 
-    fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response ;
+    fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response;
 
-    fn on_logon(&mut self, _logon: Message<&[u8]>) ;
+    fn on_logon(&mut self, _logon: Message<&[u8]>);
 
-    fn on_application_message(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a> ;
+    fn on_application_message(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a>;
 }
 
 //fn add_time_to_msg(mut msg: EncoderHandle) {

@@ -210,7 +210,6 @@ where
     }
 }
 
-
 impl<'a, B, C> FvWrite<'a> for EncoderHandle<'a, B, C>
 where
     B: Buffer,

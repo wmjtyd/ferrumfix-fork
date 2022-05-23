@@ -67,6 +67,8 @@ pub enum Error {
     Io(#[from] io::Error),
 }
 
+pub type FesofhResult<T> = Result<T, Error>;
+
 /// The header of a SOFH-enclosed message.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct Header {

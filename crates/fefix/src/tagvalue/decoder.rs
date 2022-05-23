@@ -80,7 +80,7 @@ where
     /// assert_eq!(message.fv(fix44::SENDER_COMP_ID), Ok("A"));
     /// ```
     #[inline]
-    pub fn decode<'a, T>(&'a mut self, bytes: T) -> Result<Message<'a, T>, DecodeError>
+    pub fn decode<T>(&mut self, bytes: T) -> Result<Message<'_, T>, DecodeError>
     where
         T: AsRef<[u8]>,
     {
@@ -88,11 +88,11 @@ where
         self.from_frame(frame)
     }
 
-    fn message_builder_mut<'a>(&'a mut self) -> &'a mut MessageBuilder<'a> {
+    fn message_builder_mut(&mut self) -> &mut MessageBuilder<'_> {
         unsafe { std::mem::transmute(&mut self.builder) }
     }
 
-    fn from_frame<'a, T>(&'a mut self, frame: RawFrame<T>) -> Result<Message<'a, T>, DecodeError>
+    fn from_frame<T>(&mut self, frame: RawFrame<T>) -> Result<Message<'_, T>, DecodeError>
     where
         T: AsRef<[u8]>,
     {
@@ -160,10 +160,10 @@ where
         })
     }
 
-    fn store_field<'a>(
+    fn store_field(
         &mut self,
         tag: TagU16,
-        raw_message: &'a [u8],
+        raw_message: &[u8],
         field_value_start: usize,
         field_value_len: usize,
     ) {

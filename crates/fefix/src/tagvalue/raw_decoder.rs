@@ -230,7 +230,7 @@ where
     /// Tries to deserialize the next [`RawFrame`] from the internal buffer. If
     /// the internal buffer does not contain a complete message, returns an
     /// [`Ok(None)`].
-    pub fn raw_frame<'a>(&'a self) -> Result<Option<RawFrame<&'a [u8]>>, DecodeError> {
+    pub fn raw_frame(&self) -> Result<Option<RawFrame<&[u8]>>, DecodeError> {
         match &self.last_parser_state {
             ParserState::Empty => Ok(None),
             ParserState::Err(e) => match e {

@@ -1,6 +1,4 @@
 use crate::tagvalue::{DecodeError, DecoderBuffered, Message};
-use futures::future::Fuse;
-use futures::future::Ready;
 use futures::select;
 use futures::{AsyncRead, AsyncReadExt, FutureExt};
 use futures_timer::Delay;

@@ -1,5 +1,5 @@
-use super::{FixValue, ZeroPadding, ERR_DECIMAL, ERR_INT_INVALID, ERR_UTF8};
-use crate::{Buffer, BufferWriter, TagU16};
+use super::{FixValue, ZeroPadding, ERR_INT_INVALID, ERR_UTF8};
+use crate::{Buffer, BufferWriter};
 use std::fmt::Write;
 
 const ERR_BOOL_LENGTH: &str = "Invalid length; a boolean is Y or N (1 char).";

@@ -382,9 +382,9 @@ impl Decimal {
     }
 
     /// Deserializes `self` from a bytes array.
-    pub fn from_be_bytes(mut bytes: [u8; 9]) -> Self {
+    pub fn from_be_bytes(bytes: [u8; 9]) -> Self {
         let mut mantissa_bytes = [0u8; 8];
-        mantissa_bytes.clone_from_slice(&mut bytes[1..]);
+        mantissa_bytes.clone_from_slice(&bytes[1..]);
         Self {
             exp: (bytes[0] as i32) - 16,
             mantissa: i64::from_be_bytes(mantissa_bytes),
@@ -481,7 +481,7 @@ impl ops::Add for Decimal {
         let b = other.normalize();
         Decimal {
             exp: a.exp(),
-            mantissa: a.mantissa() - b.mantissa(),
+            mantissa: a.mantissa() + b.mantissa(),
         }
         .normalize()
     }

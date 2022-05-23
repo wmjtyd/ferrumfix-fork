@@ -4,3 +4,7 @@
 
 tasks:
   - init: cargo build
+vscode:
+  extensions:
+    - "Zerotaskx.rust-extension-pack"
+    - "rust-lang.rust-analyzer"

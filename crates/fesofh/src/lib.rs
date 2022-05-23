@@ -63,9 +63,11 @@ pub enum Error {
         needed: usize,
     },
     /// I/O-related error.
-    #[error("I/O related error.")]
+    #[error("I/O error: {0}")]
     Io(#[from] io::Error),
 }
+
+pub type FesofhResult<T> = Result<T, Error>;
 
 /// The header of a SOFH-enclosed message.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

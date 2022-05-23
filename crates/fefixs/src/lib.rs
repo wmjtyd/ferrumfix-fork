@@ -163,17 +163,17 @@ const V1_DRAFT_RECOMMENDED_CIPHERSUITES_PSK_ONLY: &[&str] = &[
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     #[test]
     #[cfg(feature = "utils-openssl")]
     fn v1draft_acceptor_is_ok() {
+        use super::Version;
         Version::V1Draft.recommended_acceptor_builder();
     }
 
     #[test]
     #[cfg(feature = "utils-openssl")]
     fn v1draft_connector_is_ok() {
+        use super::Version;
         Version::V1Draft.recommended_connector_builder();
     }
 }

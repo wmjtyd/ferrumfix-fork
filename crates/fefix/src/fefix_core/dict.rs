@@ -102,12 +102,12 @@ impl fmt::Display for Dictionary {
         {
             writeln!(f, " <messages>")?;
             for message in self.iter_messages() {
+                // FIXME: msgcat's value
                 writeln!(
                     f,
-                    "  <message name='{}' msgtype='{}' msgcat='{}'>",
+                    "  <message name='{}' msgtype='{}' msgcat='TODO'>",
                     message.name(),
                     message.msg_type(),
-                    "TODO"
                 )?;
                 for item in message.layout() {
                     display_layout_item(2, item, f)?;

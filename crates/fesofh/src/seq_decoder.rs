@@ -1,3 +1,5 @@
+use crate::FesofhResult;
+
 use super::frame::Frame;
 use super::Error;
 use std::io;
@@ -49,31 +51,31 @@ impl SeqDecoder {
 
     /// Provides a buffer that MUST be filled before re-attempting to deserialize
     /// the next [`Frame`].
-    pub fn supply_buffer(&mut self) -> &mut [u8] {
+    pub fn supply_buffer(&mut self) -> FesofhResult<&mut [u8]> {
         let decode_result = Frame::<&[u8]>::deserialize(self.buffer.as_slice());
         match decode_result {
-            Ok(_) => &mut [],
-            Err(Error::Io(_)) => panic!("Impossible IO error"),
+            Ok(_) => Ok(&mut []),
             Err(Error::Incomplete { needed }) => {
                 self.buffer.resize(self.buffer.as_slice().len() + needed, 0);
-                &mut self.buffer.as_mut_slice()[self.buffer_actual_len..]
-            }
-            Err(Error::InvalidMessageLength) => panic!("Invalid stream"),
+                Ok(&mut self.buffer.as_mut_slice()[self.buffer_actual_len..])
+            },
+            other => other,
         }
     }
 
     /// Attempts decoding. Returns `Ok(())` if a [`Frame`] is ready, otherwise an `Err`.
-    pub fn attempt_decoding(&mut self) -> Result<(), Error> {
+    pub fn attempt_decoding(&mut self) -> FesofhResult<()> {
         let slice = &self.buffer.as_slice()[..self.buffer_actual_len];
-        let decode_result = Frame::<&[u8]>::deserialize(slice);
-        decode_result.map(|_| ())
+        let decode_result = Frame::<&[u8]>::deserialize(slice)?;
+        
+        Ok(())
     }
 
     /// Returns the current [`Frame`]
-    pub fn raw_frame(&self) -> Frame<&[u8]> {
+    pub fn raw_frame(&self) -> FesofhResult<Frame<&[u8]>> {
         let slice = &self.buffer.as_slice()[..self.buffer_actual_len];
-        let decode_result = Frame::<&[u8]>::deserialize(slice);
-        decode_result.unwrap()
+        let decode_result = Frame::<&[u8]>::deserialize(slice)?;
+        Ok(decode_result)
     }
 
     /// Encapsulate `reader` to a [`Frames`].
@@ -94,6 +96,17 @@ pub struct Frames<R> {
     reader: R,
 }
 
+impl<R> Frames<R> {
+    fn internal_next(&mut self) -> Result<Frame<Vec<u8>>, Error> {
+        let buffer = self.decoder.supply_buffer()?;
+
+        self.reader.read(&mut buffer)?;
+        self.decoder.attempt_decoding()?;
+
+        Ok(Some(self.decoder.raw_frame().to_owned()))
+    }
+}
+
 impl<R> Iterator for Frames<R>
 where
     R: std::io::Read,
@@ -101,16 +114,7 @@ where
     type Item = Result<Frame<Vec<u8>>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let buffer = &mut self.decoder.supply_buffer();
-
-        if let Err(e) = self.reader.read(buffer) {
-            return Err(Error::Io(e)).transpose();
-        }
-
-        match self.decoder.attempt_decoding() {
-            Ok(()) => Ok(Some(self.decoder.raw_frame().to_owned())).transpose(),
-            Err(e) => Err(e).transpose(),
-        }
+        self.internal_next().transpose()
     }
 }
 

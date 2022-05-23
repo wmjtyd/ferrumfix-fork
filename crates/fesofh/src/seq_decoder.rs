@@ -108,12 +108,8 @@ where
         }
 
         match self.decoder.attempt_decoding() {
-            Ok(()) => {
-                Ok(Some(self.decoder.raw_frame().to_owned())).transpose()
-            }
-            Err(e) => {
-                Err(e).transpose()
-            }
+            Ok(()) => Ok(Some(self.decoder.raw_frame().to_owned())).transpose(),
+            Err(e) => Err(e).transpose(),
         }
     }
 }

@@ -145,7 +145,7 @@ impl<'a> Frame<&'a [u8]> {
     pub fn to_owned(&self) -> Frame<Vec<u8>> {
         let encoding_type = self.encoding_type();
         let data = self.payload().to_vec();
-    
+
         Frame::new(encoding_type, data)
     }
 }

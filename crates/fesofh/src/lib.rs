@@ -24,7 +24,7 @@
     unconditional_recursion,
     unstable_name_collisions,
     clippy::useless_conversion,
-    clippy::missing_panics_docs,
+    clippy::missing_panics_doc,
     clippy::mixed_case_hex_literals,
     clippy::needless_bool,
     clippy::needless_lifetimes
@@ -80,7 +80,7 @@ struct Header {
 impl Header {
     const LENGTH_IN_BYTES: usize = 6;
 
-    fn to_bytes(&self) -> [u8; Self::LENGTH_IN_BYTES] {
+    fn to_bytes(self) -> [u8; Self::LENGTH_IN_BYTES] {
         let mut bytes = [0u8; Self::LENGTH_IN_BYTES];
         let (a, b) = bytes.split_at_mut(4);
         a.copy_from_slice(&(self.nominal_message_length_in_bytes as u32).to_be_bytes());

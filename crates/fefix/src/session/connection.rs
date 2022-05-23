@@ -1,10 +1,9 @@
 use super::{errs, Backend, Config, Configure, LlEvent, LlEventLoop};
+use crate::random_field_access::RandomFieldAccess;
 use crate::session::{Environment, SeqNumbers};
 use crate::tagvalue::FvWrite;
 use crate::tagvalue::Message;
-use crate::tagvalue::RandomFieldAccess;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
-use crate::Buffer;
 use crate::FixValue;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use std::marker::{PhantomData, Unpin};
@@ -96,8 +95,8 @@ where
     pub fn new(config: C, backend: B) -> FixConnection<B, C> {
         FixConnection {
             uuid: Uuid::new_v4(),
-            config: config,
-            backend: backend,
+            config,
+            backend,
             encoder: Encoder::default(),
             buffer: vec![],
             msg_seq_num_inbound: MsgSeqNumCounter::START,
@@ -191,9 +190,14 @@ where
                     return;
                 }
                 LlEvent::Heartbeat => {
-                    let heartbeat = self.on_heartbeat_is_due();
-                    output.write_all(heartbeat).await.unwrap();
-                    self.on_outbound_message(heartbeat).ok();
+                    // Clone it to workaround mutable issue.
+                    let heartbeat = self
+                        .on_heartbeat_is_due()
+                        .iter()
+                        .map(|x| *x)
+                        .collect::<Vec<u8>>();
+                    output.write_all(&heartbeat).await.unwrap();
+                    self.on_outbound_message(&heartbeat).ok();
                 }
                 LlEvent::Logout => {}
                 LlEvent::TestRequest => {}
@@ -207,18 +211,36 @@ pub trait Verify {
 
     fn verify_begin_string(&self, begin_string: &[u8]) -> Result<(), Self::Error>;
 
-    fn verify_test_message_indicator(
-        &self,
-        msg: Message<&[u8]>) -> Result<(), Self::Error>;
+    fn verify_test_message_indicator(&self, msg: Message<&[u8]>) -> Result<(), Self::Error>;
 
     fn verify_sending_time(&self, msg: Message<&[u8]>) -> Result<(), Self::Error>;
 }
 
-impl<'a, B, C, V> FixConnector<'a, B, C, V> for FixConnection<B, C>
+/// The mocked [`Verify`] implementation.
+///
+/// This implementation is used for testing.
+pub struct MockedVerifyImplementation;
+
+impl Verify for MockedVerifyImplementation {
+    type Error = ();
+
+    fn verify_begin_string(&self, _begin_string: &[u8]) -> Result<(), Self::Error> {
+        unimplemented!()
+    }
+
+    fn verify_test_message_indicator(&self, _msg: Message<&[u8]>) -> Result<(), Self::Error> {
+        unimplemented!()
+    }
+
+    fn verify_sending_time(&self, _msg: Message<&[u8]>) -> Result<(), Self::Error> {
+        unimplemented!()
+    }
+}
+
+impl<'a, B, C> FixConnector<'a, B, C> for FixConnection<B, C>
 where
     B: Backend,
     C: Configure,
-    V: Verify,
 {
     type Error = &'a [u8];
     type Msg = EncoderHandle<'a, Vec<u8>>;
@@ -231,7 +253,7 @@ where
         Ok(())
     }
 
-    fn verifier(&self) -> V {
+    fn verifier(&self) -> MockedVerifyImplementation /* FIXME */ {
         unimplemented!()
     }
 
@@ -294,7 +316,7 @@ where
             return self.on_wrong_environment(msg);
         }
 
-        let seq_num = if let Ok(n) = msg.fv::<u64>(&MSG_SEQ_NUM) {
+        let seq_num = if let Ok(n) = msg.fv::<u64>(MSG_SEQ_NUM) {
             let expected = self.msg_seq_num_inbound.expected();
             if n < expected {
                 return self.on_low_seqnum(msg);
@@ -311,11 +333,11 @@ where
         // Increment immediately.
         self.msg_seq_num_inbound.next();
 
-        if self.verifier().verify_sending_time(&msg).is_err() {
+        if self.verifier().verify_sending_time(msg).is_err() {
             return self.make_reject_for_inaccurate_sending_time(msg);
         }
 
-        let msg_type = if let Ok(x) = msg.fv::<&[u8]>(&MSG_TYPE) {
+        let msg_type = if let Ok(x) = msg.fv::<&[u8]>(MSG_TYPE) {
             x
         } else {
             self.on_inbound_app_message(msg).ok();
@@ -325,8 +347,8 @@ where
     }
 
     fn on_resend_request(&self, msg: &Message<&[u8]>) {
-        let begin_seq_num = msg.fv(&BEGIN_SEQ_NO).unwrap();
-        let end_seq_num = msg.fv(&END_SEQ_NO).unwrap();
+        let begin_seq_num = msg.fv(BEGIN_SEQ_NO).unwrap();
+        let end_seq_num = msg.fv(END_SEQ_NO).unwrap();
         self.on_resend_request(begin_seq_num..end_seq_num).ok();
     }
 
@@ -342,7 +364,7 @@ where
             msg.set_fv_with_key(&TEXT, "Logout");
             msg.done()
         };
-        fix_message
+        fix_message.0
     }
 
     fn on_heartbeat_is_due(&mut self) -> &[u8] {
@@ -357,7 +379,7 @@ where
             self.set_sending_time(&mut msg);
             msg.done()
         };
-        fix_message
+        fix_message.0
     }
 
     fn set_sender_and_target(&'a self, msg: &mut impl FvWrite<'a, Key = u32>) {
@@ -376,16 +398,17 @@ where
     }
 
     fn on_test_request(&mut self, msg: Message<&[u8]>) -> &[u8] {
-        let test_req_id = msg.fv::<&[u8]>(&TEST_REQ_ID).unwrap();
+        let test_req_id = msg.fv::<&[u8]>(TEST_REQ_ID).unwrap();
         let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"1");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"1");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         self.set_sending_time(&mut msg);
         msg.set_fv_with_key(&TEST_REQ_ID, test_req_id);
-        msg.done()
+        msg.done().0
     }
 
     fn on_wrong_environment(&mut self, _message: Message<&[u8]>) -> Response {
@@ -397,12 +420,13 @@ where
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let text = errs::msg_seq_num(self.msg_seq_num_inbound.0 + 1);
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"FIXME");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"FIXME");
         msg.set_fv_with_key(&MSG_TYPE, "5");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         msg.set_fv_with_key(&TEXT, text.as_str());
-        msg.done()
+        msg.done().0
     }
 
     fn on_missing_seqnum(&mut self, _message: Message<&[u8]>) -> Response {
@@ -426,7 +450,8 @@ where
         let target_comp_id = self.target_comp_id();
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"3");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"3");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         if let Some(ref_tag) = ref_tag {
@@ -437,12 +462,12 @@ where
         }
         msg.set_fv_with_key(&SESSION_REJECT_REASON, reason);
         msg.set_fv_with_key(&TEXT, err_text.as_str());
-        Response::OutboundBytes(msg.done())
+        Response::OutboundBytes(msg.done().0)
     }
 
     fn make_reject_for_inaccurate_sending_time(&mut self, offender: Message<&[u8]>) -> Response {
-        let ref_seq_num = offender.fv(&MSG_SEQ_NUM).unwrap();
-        let ref_msg_type = offender.fv::<&str>(&MSG_TYPE).unwrap();
+        let ref_seq_num = offender.fv::<u64>(MSG_SEQ_NUM).unwrap();
+        let ref_msg_type = offender.fv::<&str>(MSG_TYPE).unwrap();
         self.on_reject(
             ref_seq_num,
             Some(SENDING_TIME),
@@ -459,30 +484,32 @@ where
             let target_comp_id = self.target_comp_id();
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let mut msg = self
-            .encoder.start_message(begin_string, &mut self.buffer, b"5");
+                .encoder
+                .start_message(begin_string, &mut self.buffer, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, text.as_str());
             self.set_sending_time(&mut msg);
             msg.done()
         };
-        Response::OutboundBytes(fix_message)
+        Response::OutboundBytes(fix_message.0)
     }
 
     fn make_resend_request(&mut self, start: u64, end: u64) -> Response {
         let begin_string = self.config.begin_string();
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"2");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"2");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_seqnum(msg);
         msg.set_fv_with_key(&BEGIN_SEQ_NO, start);
         msg.set_fv_with_key(&END_SEQ_NO, end);
-        Response::OutboundBytes(msg.done())
+        Response::OutboundBytes(msg.done().0)
     }
 
     fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response {
-        let msg_seq_num = msg.fv(&MSG_SEQ_NUM).unwrap();
+        let msg_seq_num = msg.fv(MSG_SEQ_NUM).unwrap();
         self.make_resend_request(self.seq_numbers().next_inbound(), msg_seq_num);
         todo!()
     }
@@ -490,7 +517,8 @@ where
     fn on_logon(&mut self, _logon: Message<&[u8]>) {
         let begin_string = self.config.begin_string();
         let mut msg = self
-        .encoder.start_message(begin_string, &mut self.buffer, b"A");
+            .encoder
+            .start_message(begin_string, &mut self.buffer, b"A");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_sending_time(msg);
@@ -525,7 +553,7 @@ struct ResponseData<'a> {
     pub msg_seq_num: u32,
 }
 
-pub trait FixConnector<'a, B, C, V>
+pub trait FixConnector<'a, B, C, V = MockedVerifyImplementation>
 where
     B: Backend,
     C: Configure,
@@ -560,11 +588,11 @@ where
         &'a mut self,
         msg: Message<&[u8]>,
         builder: MessageBuilder,
-    ) -> Response<'a> ;
+    ) -> Response<'a>;
 
-    fn on_resend_request(&self, msg: &Message<&[u8]>) ;
+    fn on_resend_request(&self, msg: &Message<&[u8]>);
 
-    fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8] ;
+    fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8];
 
     //    fn add_seqnum(&self, msg: &mut RawEncoderState) {
     //        msg.add_field(tags::MSG_SEQ_NUM, self.seq_numbers().next_outbound());
@@ -588,14 +616,14 @@ where
 
     fn on_test_request(&mut self, msg: Message<&[u8]>) -> &[u8];
 
-    fn on_wrong_environment(&mut self, _message: Message<&[u8]>) -> Response ;
-    fn generate_error_seqnum_too_low(&mut self) -> &[u8] ;
+    fn on_wrong_environment(&mut self, _message: Message<&[u8]>) -> Response;
+    fn generate_error_seqnum_too_low(&mut self) -> &[u8];
 
     fn on_missing_seqnum(&mut self, _message: Message<&[u8]>) -> Response {
         self.make_logout(errs::missing_field("MsgSeqNum", MSG_SEQ_NUM))
     }
 
-    fn on_low_seqnum(&mut self, _message: Message<&[u8]>) -> Response ;
+    fn on_low_seqnum(&mut self, _message: Message<&[u8]>) -> Response;
 
     fn on_reject(
         &mut self,
@@ -604,19 +632,19 @@ where
         ref_msg_type: Option<&[u8]>,
         reason: u32,
         err_text: String,
-    ) -> Response ;
+    ) -> Response;
 
-    fn make_reject_for_inaccurate_sending_time(&mut self, offender: Message<&[u8]>) -> Response ;
+    fn make_reject_for_inaccurate_sending_time(&mut self, offender: Message<&[u8]>) -> Response;
 
-    fn make_logout(&mut self, text: String) -> Response ;
+    fn make_logout(&mut self, text: String) -> Response;
 
-    fn make_resend_request(&mut self, start: u64, end: u64) -> Response ;
+    fn make_resend_request(&mut self, start: u64, end: u64) -> Response;
 
-    fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response ;
+    fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response;
 
-    fn on_logon(&mut self, _logon: Message<&[u8]>) ;
+    fn on_logon(&mut self, _logon: Message<&[u8]>);
 
-    fn on_application_message(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a> ;
+    fn on_application_message(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a>;
 }
 
 //fn add_time_to_msg(mut msg: EncoderHandle) {

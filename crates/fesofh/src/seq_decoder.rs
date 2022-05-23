@@ -76,6 +76,7 @@ impl SeqDecoder {
         decode_result.unwrap()
     }
 
+    /// Encapsulate `reader` to a [`Frames`].
     pub fn read_frames<R>(self, reader: R) -> Frames<R>
     where
         R: io::Read,
@@ -93,27 +94,22 @@ pub struct Frames<R> {
     reader: R,
 }
 
-impl<R> Frames<R>
+impl<R> Iterator for Frames<R>
 where
     R: std::io::Read,
 {
-    pub fn next(&mut self) -> Result<Option<Frame<&[u8]>>, Error> {
-        loop {
-            let buffer = &mut self.decoder.supply_buffer();
-            match self.reader.read(buffer) {
-                Err(e) => {
-                    return Err(Error::Io(e));
-                }
-                Ok(_) => {}
-            }
-            match self.decoder.attempt_decoding() {
-                Ok(()) => {
-                    return Ok(Some(self.decoder.raw_frame()));
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
+    type Item = Result<Frame<Vec<u8>>, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let buffer = &mut self.decoder.supply_buffer();
+
+        if let Err(e) = self.reader.read(buffer) {
+            return Err(Error::Io(e)).transpose();
+        }
+
+        match self.decoder.attempt_decoding() {
+            Ok(()) => Ok(Some(self.decoder.raw_frame().to_owned())).transpose(),
+            Err(e) => Err(e).transpose(),
         }
     }
 }

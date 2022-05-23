@@ -79,7 +79,6 @@ pub enum DecodeError {
     IO(#[from] std::io::Error),
 }
 
-
 pub trait FvWrite<'a> {
     type Key;
 
@@ -93,5 +92,4 @@ pub trait FvWrite<'a> {
         F: IsFieldDefinition;
 }
 
-pub trait RandomFieldAccess<u32> {
-}
+pub trait RandomFieldAccess {}

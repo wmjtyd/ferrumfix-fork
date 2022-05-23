@@ -1,10 +1,8 @@
 use super::Tz;
-use super::{Date, ERR_TIME, ERR_UTF8};
+use super::{ERR_TIME, ERR_UTF8};
 use crate::{Buffer, BufferWriter, FixValue};
 use chrono::DateTime;
 use chrono::NaiveDateTime;
-use chrono::Offset;
-use chrono::TimeZone;
 use chrono::Timelike;
 use std::fmt::Write;
 

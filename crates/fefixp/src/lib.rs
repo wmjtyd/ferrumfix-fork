@@ -22,44 +22,44 @@ pub enum MessageType {
 
 #[derive(Debug, Clone)]
 pub struct Sequence {
-    next_seq_number: u64,
+    pub next_seq_number: u64,
 }
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    session_id: SessionId,
-    next_seq_number: u64,
+    pub session_id: SessionId,
+    pub next_seq_number: u64,
 }
 
 #[derive(Debug, Clone)]
 pub struct MessageTemplate {
-    encoding_type: u32,
-    effective_time: u64,
-    version: Vec<u8>,
-    template: Vec<u8>,
+    pub encoding_type: u32,
+    pub effective_time: u64,
+    pub version: Vec<u8>,
+    pub template: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Negotiate {
-    session_id: SessionId,
-    client_flow: FlowType,
-    credentials: Option<Vec<u8>>,
+    pub session_id: SessionId,
+    pub client_flow: FlowType,
+    pub credentials: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct NegotiationReject {
-    session_id: SessionId,
-    reason: Option<String>,
+    pub session_id: SessionId,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Establish {
-    session_id: SessionId,
-    next_seq_number: u64,
-    credentials: Option<Vec<u8>>,
+    pub session_id: SessionId,
+    pub next_seq_number: u64,
+    pub credentials: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct EstablishmentAck {
-    next_seq_number: u64,
+    pub next_seq_number: u64,
 }

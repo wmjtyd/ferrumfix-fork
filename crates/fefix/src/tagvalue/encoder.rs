@@ -210,7 +210,6 @@ where
     }
 }
 
-
 impl<'a, B, C> FvWrite<'a> for EncoderHandle<'a, B, C>
 where
     B: Buffer,
@@ -222,7 +221,8 @@ where
     where
         T: FixValue<'b>,
     {
-        self.set_any(*key, value);
+        todo!()
+        // self.set_fv(key, value);
     }
 
     fn set_fv<'b, V, F>(&'b mut self, field: &F, value: V)
@@ -230,6 +230,6 @@ where
         V: FixValue<'b>,
         F: IsFieldDefinition,
     {
-        self.set_fv_with_key(&field.tag(), value);
+        self.set_fv_with_key(&(field.tag().get() as u32), value);
     }
 }

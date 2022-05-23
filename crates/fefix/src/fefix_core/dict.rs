@@ -193,7 +193,7 @@ impl Dictionary {
     pub fn from_quickfix_spec<S: AsRef<str>>(input: S) -> Result<Self, ParseDictionaryError> {
         let xml_document = roxmltree::Document::parse(input.as_ref())
             .map_err(|_| ParseDictionaryError::InvalidFormat)?;
-        QuickFixReader::new(&xml_document)
+        QuickFixReader::new_dict_from_xml(&xml_document)
     }
 
     /// Creates a new empty FIX Dictionary with `FIX.???` as its version string.
@@ -1510,7 +1510,7 @@ mod quickfix {
     }
 
     impl<'a> QuickFixReader<'a> {
-        pub fn new(xml_document: &'a roxmltree::Document<'a>) -> ParseResult<Dictionary> {
+        pub fn new_dict_from_xml(xml_document: &'a roxmltree::Document<'a>) -> ParseResult<Dictionary> {
             let mut reader = Self::empty(xml_document)?;
             for child in reader.node_with_fields.children() {
                 if child.is_element() {

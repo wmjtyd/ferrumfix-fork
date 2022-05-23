@@ -85,14 +85,14 @@ where
         T: AsRef<[u8]>,
     {
         let frame = self.raw_decoder.decode(bytes)?;
-        self.from_frame(frame)
+        self.construct_message_from_frame(frame)
     }
 
     fn message_builder_mut(&mut self) -> &mut MessageBuilder<'_> {
         unsafe { std::mem::transmute(&mut self.builder) }
     }
 
-    fn from_frame<T>(&mut self, frame: RawFrame<T>) -> Result<Message<'_, T>, DecodeError>
+    fn construct_message_from_frame<T>(&mut self, frame: RawFrame<T>) -> Result<Message<'_, T>, DecodeError>
     where
         T: AsRef<[u8]>,
     {
@@ -271,7 +271,7 @@ where
         self.raw_decoder.parse();
         match self.raw_decoder.raw_frame() {
             Ok(Some(frame)) => {
-                self.decoder.from_frame(frame)?;
+                self.decoder.construct_message_from_frame(frame)?;
                 Ok(Some(()))
             }
             Ok(None) => Ok(None),

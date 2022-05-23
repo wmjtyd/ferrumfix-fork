@@ -60,6 +60,8 @@ full = [
     "fix50sp1",
     "fix50sp2",
     "fixt11",
+    "serde",
+    "serde_json",
     "utils-bytes",
     "utils-chrono",
     "utils-decimal",
@@ -70,7 +72,6 @@ full = [
 ]
 
 [dependencies]
-bitvec = "0.18.3"
 bytes = { version = "1", optional = true }
 chrono = "0.4"
 decimal = { version = "2", optional = true }
@@ -81,39 +82,30 @@ futures-timer = "3"
 heck = { version = "0.3", optional = true }
 indoc = { version = "1", optional = true }
 nohash-hasher = "0.2"
-lazy_static = "1"
 openssl = { version = "0.10", optional = true }
 # For reading XML.
 roxmltree = "0.14"
 rust_decimal = { version = "1", optional = true }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1"
+serde = { version = "1.0.137", features = ["derive"], optional = true }
+serde_json = { version = "1.0.81", optional = true }
 slog = { version = "2", optional = true }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "postgres"] }
 strum = "0.22"
 strum_macros = "0.22"
 thiserror = "1"
 tokio-util = { version = "0.6", optional = true, features = ["codec", "compat"] }
-uuid = { version = "0.8.1", features = ["v4"] }
 
 [build-dependencies]
 chrono = "0.4"
 fnv = "1"
 heck = "0.3"
 indoc = "1"
-lazy_static = "1"
-quick-xml = "0.22"
 roxmltree = "0.14"
-rayon = "1"
 strum = "0.22"
 strum_macros = "0.22"
 
 [dev-dependencies]
-arbitrary = { version = "1.0", features = ["derive"] }
 criterion = { version = "0.3", features = ["html_reports"] }
-enum-as-inner = "0.3"
 quickcheck = "1"
-quickcheck_derive = "0.3"
 quickcheck_macros = "1"
 tokio = { version = "1", features = ["full"] }
 syn = { version = "1", features = ["parsing"] }

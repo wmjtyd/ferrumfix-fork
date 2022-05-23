@@ -417,6 +417,11 @@ impl<'a, T> Message<'a, T> {
     pub fn len(&self) -> usize {
         self.builder.field_locators.len()
     }
+
+    /// Is the FIX tags contained in `self` none.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<'a, T> PartialEq for Message<'a, T> {

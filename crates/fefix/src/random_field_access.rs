@@ -123,6 +123,11 @@ pub trait RepeatingGroup: Sized {
     /// Returns the number of FIX group entries in `self`.
     fn len(&self) -> usize;
 
+    /// Is the FIX group entries in `self` empty.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns the `i` -th entry in `self`, if present.
     fn entry_opt(&self, i: usize) -> Option<Self::Entry>;
 

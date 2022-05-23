@@ -110,7 +110,7 @@ impl<'a> FixValue<'a> for Tz {
     }
 
     fn deserialize(data: &'a [u8]) -> Result<Self, Self::Error> {
-        if data.len() == 0 {
+        if data.is_empty() {
             return Err(ERR_INVALID);
         }
         let sign: i32;

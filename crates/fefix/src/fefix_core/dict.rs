@@ -1750,7 +1750,7 @@ mod quickfix {
                 values.push(enum_value);
             }
         }
-        if values.len() == 0 {
+        if values.is_empty() {
             None
         } else {
             Some(values)

@@ -1033,13 +1033,12 @@ mod datatype {
     #[cfg(test)]
     mod test {
         use super::*;
-        use std::collections::HashSet;
 
         #[test]
         fn iter_all_unique() {
-            let as_vec = FixDatatype::iter_all().collect::<Vec<FixDatatype>>();
-            let as_set = FixDatatype::iter_all().collect::<HashSet<FixDatatype>>();
-            assert_eq!(as_vec.len(), as_set.len());
+            let as_vec = FixDatatype::iter_all();
+            let as_set = FixDatatype::iter_all();
+            assert_eq!(as_vec.count(), as_set.count());
         }
 
         #[test]
@@ -1053,12 +1052,10 @@ mod datatype {
         #[test]
         fn names_are_unique() {
             let as_vec = FixDatatype::iter_all()
-                .map(|dt| dt.name())
-                .collect::<Vec<&str>>();
+                .map(|dt| dt.name());
             let as_set = FixDatatype::iter_all()
-                .map(|dt| dt.name())
-                .collect::<HashSet<&str>>();
-            assert_eq!(as_vec.len(), as_set.len());
+                .map(|dt| dt.name());
+            assert_eq!(as_vec.count(), as_set.count());
         }
 
         #[test]

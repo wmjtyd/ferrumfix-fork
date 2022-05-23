@@ -154,7 +154,7 @@ where
         slice[4] = to_digit((body_length / 1000) as u8 % 10);
         slice[5] = to_digit((body_length / 100) as u8 % 10);
         slice[6] = to_digit((body_length / 10) as u8 % 10);
-        slice[7] = to_digit((body_length / 1) as u8 % 10);
+        slice[7] = to_digit(body_length as u8 % 10);
     }
 
     fn write_checksum(&mut self) {

@@ -217,7 +217,28 @@ pub trait Verify {
     fn verify_sending_time(&self, msg: Message<&[u8]>) -> Result<(), Self::Error>;
 }
 
-impl<'a, B, C, V> FixConnector<'a, B, C, V> for FixConnection<B, C>
+/// The mocked [`Verify`] implementation.
+/// 
+/// This implementation is used for testing.
+pub struct MockedVerifyImplementation;
+
+impl Verify for MockedVerifyImplementation {
+    type Error = ();
+
+    fn verify_begin_string(&self, _begin_string: &[u8]) -> Result<(), Self::Error> {
+        unimplemented!()
+    }
+
+    fn verify_test_message_indicator(
+        &self,
+        _msg: Message<&[u8]>) -> Result<(), Self::Error> {
+        unimplemented!()
+    }
+
+    fn verify_sending_time(&self, _msg: Message<&[u8]>) -> Result<(), Self::Error> {
+        unimplemented!()
+    }
+}
 where
     B: Backend,
     C: Configure,

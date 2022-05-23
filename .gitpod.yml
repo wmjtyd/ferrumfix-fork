@@ -4,10 +4,22 @@
 
 tasks:
   - init: |
+      # Install udeps
+      cargo install cargo-udeps
+
+      # Pre-run check, clippy and build
       cargo check
       cargo clippy
       cargo build
 vscode:
   extensions:
+    # Rust
     - "Zerotaskx.rust-extension-pack"
     - "rust-lang.rust-analyzer"
+    # Git
+    - "mhutchie.git-graph"
+    - "donjayamanne.githistory"
+    - "eamodio.gitlens"
+    # Live Server
+    - "ritwickdey.LiveServer"
+

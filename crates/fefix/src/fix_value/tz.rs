@@ -46,7 +46,7 @@ impl Tz {
     pub fn offset(&self) -> (i32, Duration) {
         (
             self.offset_from_utc_in_seconds.signum(),
-            Duration::from_secs(self.offset_from_utc_in_seconds.abs() as u64),
+            Duration::from_secs(self.offset_from_utc_in_seconds.unsigned_abs() as u64),
         )
     }
 
@@ -110,22 +110,17 @@ impl<'a> FixValue<'a> for Tz {
     }
 
     fn deserialize(data: &'a [u8]) -> Result<Self, Self::Error> {
-        if data.len() == 0 {
+        if data.is_empty() {
             return Err(ERR_INVALID);
         }
-        let sign: i32;
-        match data[0] {
+        let sign = match data[0] {
             b'Z' => {
                 return Ok(Self::UTC);
             }
-            b'+' => {
-                sign = 1;
-            }
-            b'-' => {
-                sign = -1;
-            }
+            b'+' => 1i32,
+            b'-' => -1i32,
             _ => return Err(ERR_INVALID),
-        }
+        };
         match data.len() {
             3 => {
                 let hour = ascii_digit_to_u32(data[1], 10) + ascii_digit_to_u32(data[2], 1);

@@ -21,48 +21,25 @@ rustdoc-args = ["--cfg", "doc_cfg"]
 name = "fefast"
 
 [dependencies]
-bitvec = "0.18.3"
-bytes = { version="1", optional=true }
-chrono = "0.4"
-decimal = { version="2", optional=true }
-fnv = "1"
-futures = "0.3"
-futures-timer = "3"
-heck = "0.3"
-indoc = "1"
-nohash-hasher = "0.2"
-lazy_static = "1"
-openssl = { version="0.10", optional=true }
+bitvec = "1.0.0"
+bytes = { version = "1.1.0", optional = true }
+decimal = { version = "2.1.0", optional = true }
+heck = "0.4.0"
+indoc = "1.0.6"
+openssl = { version = "0.10.40", optional = true }
 # For reading XML.
-roxmltree = "0.14"
-rust_decimal = { version="1", optional=true }
-serde = { version="1.0", features=["derive"] }
-serde_json = "1"
-slog = { version="2", optional=true }
-sqlx = { version="0.5", features=["runtime-tokio-rustls", "postgres"] }
-strum = "0.20"
-strum_macros = "0.20"
-thiserror = "1"
-tokio-util = { version="0.6", optional=true, features=["codec"] }
-uuid = { version="0.8.1", features=["v4"] }
+roxmltree = "0.14.1"
+rust_decimal = { version = "1.23.1", optional = true }
+slog = { version = "2.7.0", optional = true }
+tokio-util = { version = "0.7.2", optional = true, features = ["codec"] }
 
 [build-dependencies]
-chrono = "0.4"
-fnv = "1"
-heck = "0.3"
-indoc = "1"
-lazy_static = "1"
-quick-xml = "0.22"
-roxmltree = "0.14"
-rayon = "1"
-strum = "0.20"
-strum_macros = "0.20"
+heck = "0.4.0"
+indoc = "1.0.6"
+quick-xml = "0.22.0"
+roxmltree = "0.14.1"
+rayon = "1.5.3"
 
 [dev-dependencies]
-arbitrary = { version="1.0", features=["derive"] }
-criterion = { version="0.3", features=["html_reports"] }
-enum-as-inner = "0.3"
-quickcheck = "1"
-quickcheck_derive = "0.3"
-quickcheck_macros = "1"
-syn = { version="1", features=["parsing"] }
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"

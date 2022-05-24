@@ -11,11 +11,6 @@ const MAX_MINUTE: u32 = 59;
 const MAX_SECOND: u32 = 60; // Leap seconds.
 const MAX_MILLISECOND: u32 = 999;
 
-const MIN_HOUR: u32 = 0;
-const MIN_MINUTE: u32 = 0;
-const MIN_SECOND: u32 = 0;
-const MIN_MILLISECOND: u32 = 0;
-
 /// Canonical data field (DTF) for
 /// [`FixDatatype::UtcTimeOnly`](crate::dict::FixDatatype::UtcTimeOnly).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -29,13 +24,11 @@ pub struct Time {
 impl Time {
     /// Creates a new time value from its components, with milliseconds.
     pub fn from_hmsm(hour: u32, minute: u32, second: u32, milli: u32) -> Option<Self> {
-        if hour >= MIN_HOUR
-            && hour <= MAX_HOUR
-            && minute >= MIN_MINUTE
+        // hour, minute, second & mills will all start in usize::MIN,
+        // therefore we don't need to check them.
+        if hour <= MAX_HOUR
             && minute <= MAX_MINUTE
-            && second >= MIN_SECOND
             && second <= MAX_SECOND
-            && milli >= MIN_MILLISECOND
             && milli <= MAX_MILLISECOND
         {
             Some(Self {

@@ -1,9 +1,9 @@
 [profile.release]
-lto = true
+lto = "thin"
 
 [workspace]
 members = [
     "crates/*",
-    "examples/*",
-    "tests/*",
+    # "examples/*",
+    # "tests/*",
 ]

@@ -68,7 +68,7 @@ where
     ///
     /// # Examples
     ///
-    /// ```no_run FIXME
+    /// ```
     /// use fefix::tagvalue::{Config, Decoder};
     /// use fefix::prelude::*;
     ///
@@ -77,22 +77,27 @@ where
     /// decoder.config_mut().set_separator(b'|');
     /// let data = b"8=FIX.4.4|9=42|35=0|49=A|56=B|34=12|52=20100304-07:59:30|10=185|";
     /// let message = decoder.decode(data).unwrap();
+    ///
+    /// #[cfg(feature = "fix44")]
     /// assert_eq!(message.fv(fix44::SENDER_COMP_ID), Ok("A"));
     /// ```
     #[inline]
-    pub fn decode<'a, T>(&'a mut self, bytes: T) -> Result<Message<'a, T>, DecodeError>
+    pub fn decode<T>(&mut self, bytes: T) -> Result<Message<'_, T>, DecodeError>
     where
         T: AsRef<[u8]>,
     {
         let frame = self.raw_decoder.decode(bytes)?;
-        self.from_frame(frame)
+        self.construct_message_from_frame(frame)
     }
 
-    fn message_builder_mut<'a>(&'a mut self) -> &'a mut MessageBuilder<'a> {
+    fn message_builder_mut(&mut self) -> &mut MessageBuilder<'_> {
         unsafe { std::mem::transmute(&mut self.builder) }
     }
 
-    fn from_frame<'a, T>(&'a mut self, frame: RawFrame<T>) -> Result<Message<'a, T>, DecodeError>
+    fn construct_message_from_frame<T>(
+        &mut self,
+        frame: RawFrame<T>,
+    ) -> Result<Message<'_, T>, DecodeError>
     where
         T: AsRef<[u8]>,
     {
@@ -160,10 +165,10 @@ where
         })
     }
 
-    fn store_field<'a>(
+    fn store_field(
         &mut self,
         tag: TagU16,
-        raw_message: &'a [u8],
+        raw_message: &[u8],
         field_value_start: usize,
         field_value_len: usize,
     ) {
@@ -271,7 +276,7 @@ where
         self.raw_decoder.parse();
         match self.raw_decoder.raw_frame() {
             Ok(Some(frame)) => {
-                self.decoder.from_frame(frame)?;
+                self.decoder.construct_message_from_frame(frame)?;
                 Ok(Some(()))
             }
             Ok(None) => Ok(None),
@@ -373,7 +378,7 @@ impl<'a, T> Message<'a, T> {
     /// ```
     pub fn fields(&'a self) -> Fields<'a, T> {
         Fields {
-            message: &self,
+            message: self,
             i: 0,
         }
     }
@@ -416,6 +421,11 @@ impl<'a, T> Message<'a, T> {
     /// ```
     pub fn len(&self) -> usize {
         self.builder.field_locators.len()
+    }
+
+    /// Is the FIX tags contained in `self` none.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -692,7 +702,7 @@ mod test {
     ];
 
     fn with_soh(msg: &str) -> String {
-        msg.split("|").collect::<Vec<&str>>().join("\x01")
+        msg.split('|').collect::<Vec<&str>>().join("\x01")
     }
 
     fn decoder() -> Decoder<Config> {

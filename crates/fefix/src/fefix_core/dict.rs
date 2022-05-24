@@ -193,7 +193,7 @@ impl Dictionary {
     pub fn from_quickfix_spec<S: AsRef<str>>(input: S) -> Result<Self, ParseDictionaryError> {
         let xml_document = roxmltree::Document::parse(input.as_ref())
             .map_err(|_| ParseDictionaryError::InvalidFormat)?;
-        QuickFixReader::new(&xml_document)
+        QuickFixReader::new_dict_from_xml(&xml_document)
     }
 
     /// Creates a new empty FIX Dictionary with `FIX.???` as its version string.
@@ -429,7 +429,7 @@ impl Dictionary {
         self.inner
             .messages
             .iter()
-            .map(move |data| Message(&self, data))
+            .map(move |data| Message(self, data))
     }
 
     /// Returns an [`Iterator`] over this [`Dictionary`]'s categories. Items are
@@ -438,13 +438,13 @@ impl Dictionary {
         self.inner
             .categories
             .iter()
-            .map(move |data| Category(&self, data))
+            .map(move |data| Category(self, data))
     }
 
     /// Returns an [`Iterator`] over this [`Dictionary`]'s fields. Items are
     /// in no particular order.
     pub fn iter_fields(&self) -> impl Iterator<Item = Field> {
-        self.inner.fields.iter().map(move |data| Field(&self, data))
+        self.inner.fields.iter().map(move |data| Field(self, data))
     }
 
     /// Returns an [`Iterator`] over this [`Dictionary`]'s components. Items are in
@@ -453,7 +453,7 @@ impl Dictionary {
         self.inner
             .components
             .iter()
-            .map(move |data| Component(&self, data))
+            .map(move |data| Component(self, data))
     }
 }
 
@@ -647,7 +647,7 @@ impl<'a> Component<'a> {
 }
 
 /// Component type (FIXML-specific information).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum FixmlComponentAttributes {
     Xml,
@@ -659,7 +659,7 @@ pub enum FixmlComponentAttributes {
     Message,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct DatatypeData {
     /// **Primary key.** Identifier of the datatype.
     datatype: FixDatatype,
@@ -988,10 +988,7 @@ mod datatype {
         /// assert_eq!(FixDatatype::Price.is_base_type(), false);
         /// ```
         pub fn is_base_type(&self) -> bool {
-            match self {
-                Self::Char | Self::Float | Self::Int | Self::String => true,
-                _ => false,
-            }
+            matches!(self, Self::Char | Self::Float | Self::Int | Self::String)
         }
 
         /// Returns the primitive [`Datatype`](super::Datatype) from which `self` is derived. If
@@ -1036,13 +1033,12 @@ mod datatype {
     #[cfg(test)]
     mod test {
         use super::*;
-        use std::collections::HashSet;
 
         #[test]
         fn iter_all_unique() {
-            let as_vec = FixDatatype::iter_all().collect::<Vec<FixDatatype>>();
-            let as_set = FixDatatype::iter_all().collect::<HashSet<FixDatatype>>();
-            assert_eq!(as_vec.len(), as_set.len());
+            let as_vec = FixDatatype::iter_all();
+            let as_set = FixDatatype::iter_all();
+            assert_eq!(as_vec.count(), as_set.count());
         }
 
         #[test]
@@ -1055,13 +1051,9 @@ mod datatype {
 
         #[test]
         fn names_are_unique() {
-            let as_vec = FixDatatype::iter_all()
-                .map(|dt| dt.name())
-                .collect::<Vec<&str>>();
-            let as_set = FixDatatype::iter_all()
-                .map(|dt| dt.name())
-                .collect::<HashSet<&str>>();
-            assert_eq!(as_vec.len(), as_set.len());
+            let as_vec = FixDatatype::iter_all().map(|dt| dt.name());
+            let as_set = FixDatatype::iter_all().map(|dt| dt.name());
+            assert_eq!(as_vec.count(), as_set.count());
         }
 
         #[test]
@@ -1415,7 +1407,7 @@ impl<'a> Message<'a> {
 /// A [`Section`] is a collection of many [`Component`]-s. It has no practical
 /// effect on encoding and decoding of FIX data and it's only used for
 /// documentation and human readability.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Section {}
 
 mod symbol_table {
@@ -1516,8 +1508,10 @@ mod quickfix {
     }
 
     impl<'a> QuickFixReader<'a> {
-        pub fn new(xml_document: &'a roxmltree::Document<'a>) -> ParseResult<Dictionary> {
-            let mut reader = Self::empty(&xml_document)?;
+        pub fn new_dict_from_xml(
+            xml_document: &'a roxmltree::Document<'a>,
+        ) -> ParseResult<Dictionary> {
+            let mut reader = Self::empty(xml_document)?;
             for child in reader.node_with_fields.children() {
                 if child.is_element() {
                     import_field(&mut reader.builder, child)?;
@@ -1562,21 +1556,15 @@ mod quickfix {
                         ParseDictionaryError::InvalidData(format!("<{}> tag not found", tag))
                     })
             };
-            let version_type = root
-                .attribute("type")
-                .ok_or(ParseDictionaryError::InvalidData(
-                    "No version attribute.".to_string(),
-                ))?;
-            let version_major =
-                root.attribute("major")
-                    .ok_or(ParseDictionaryError::InvalidData(
-                        "No major version attribute.".to_string(),
-                    ))?;
-            let version_minor =
-                root.attribute("minor")
-                    .ok_or(ParseDictionaryError::InvalidData(
-                        "No minor version attribute.".to_string(),
-                    ))?;
+            let version_type = root.attribute("type").ok_or_else(|| {
+                ParseDictionaryError::InvalidData("No version attribute.".to_string())
+            })?;
+            let version_major = root.attribute("major").ok_or_else(|| {
+                ParseDictionaryError::InvalidData("No major version attribute.".to_string())
+            })?;
+            let version_minor = root.attribute("minor").ok_or_else(|| {
+                ParseDictionaryError::InvalidData("No minor version attribute.".to_string())
+            })?;
             let version_sp = root.attribute("servicepack").unwrap_or("0");
             let version = format!(
                 "{}.{}.{}{}",
@@ -1750,7 +1738,7 @@ mod quickfix {
                 values.push(enum_value);
             }
         }
-        if values.len() == 0 {
+        if values.is_empty() {
             None
         } else {
             Some(values)

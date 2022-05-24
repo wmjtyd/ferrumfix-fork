@@ -14,17 +14,19 @@
 //! [`TokioCodec`].
 
 #![doc(html_root_url = "https://docs.rs/fesofh/")]
-#![warn(missing_docs, rustdoc::missing_doc_code_examples)]
+#![warn(
+    // missing_docs, // FIXME
+    rustdoc::missing_doc_code_examples
+)]
 #![deny(
     unused,
     missing_debug_implementations,
     unsafe_op_in_unsafe_fn,
     rustdoc::broken_intra_doc_links,
-    //missing_docs,
     unconditional_recursion,
     unstable_name_collisions,
     clippy::useless_conversion,
-    clippy::missing_panics_doc,
+    // clippy::missing_panics_doc, // FIXME
     clippy::mixed_case_hex_literals,
     clippy::needless_bool,
     clippy::needless_lifetimes

@@ -7,7 +7,7 @@
 
 pub mod backends;
 mod config;
-mod connection; // FIXME
+// mod connection; // FIXME: need to rewrite
 mod environment;
 mod errs;
 mod event_loop;
@@ -16,7 +16,7 @@ mod resend_request_range;
 mod seq_numbers;
 
 pub use config::{Config, Configure};
-pub use connection::*; // FIXME
+// pub use connection::*; // FIXME: need to rewrite
 pub use environment::Environment;
 pub use event_loop::*;
 pub use heartbeat_rule::HeartbeatRule;
@@ -39,7 +39,7 @@ pub trait Backend: Clone {
         None
     }
 
-    fn set_sender_and_target<'a>(&'a self, msg: &mut impl SetField<u32>) {
+    fn set_sender_and_target(&self, msg: &mut impl SetField<u32>) {
         msg.set(49, self.sender_comp_id());
         msg.set(56, self.target_comp_id());
     }
@@ -98,7 +98,7 @@ impl MsgSeqNumCounter {
     pub const START: Self = Self(0);
 
     #[inline]
-    pub fn next(&mut self) -> u64 {
+    fn internal_next(&mut self) -> u64 {
         self.0 += 1;
         self.0
     }
@@ -113,7 +113,7 @@ impl Iterator for MsgSeqNumCounter {
     type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(MsgSeqNumCounter::next(self))
+        Some(MsgSeqNumCounter::internal_next(self))
     }
 }
 

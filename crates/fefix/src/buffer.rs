@@ -23,6 +23,10 @@ pub trait Buffer {
         self.as_slice().len()
     }
 
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns the number of bytes that `self` can hold without reallocating.
     fn capacity(&self) -> usize;
 
@@ -143,6 +147,6 @@ mod test {
     #[quickcheck]
     fn vec_clear_always_removes_content(mut vec: Vec<u8>) -> bool {
         Buffer::clear(&mut vec);
-        vec.len() == 0
+        vec.is_empty()
     }
 }

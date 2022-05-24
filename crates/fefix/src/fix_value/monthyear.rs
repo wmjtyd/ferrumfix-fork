@@ -212,9 +212,7 @@ fn validate_week(data: &[u8]) -> bool {
 }
 
 fn validate_day(data: &[u8]) -> bool {
-    (data[6] == b'0' && data[7] >= b'0' && data[7] <= b'9')
-        || (data[6] == b'1' && data[7] >= b'0' && data[7] <= b'9')
-        || (data[6] == b'2' && data[7] >= b'0' && data[7] <= b'9')
+    ([b'0', b'1', b'2'].contains(&data[6]) && data[7] >= b'0' && data[7] <= b'9')
         || (data[6] == b'3' && data[7] >= b'0' && data[7] <= b'1')
 }
 

@@ -187,15 +187,15 @@ mod test {
 
     #[test]
     fn config_verifies_checksum_by_default() {
-        assert_eq!(Config::default().verify_checksum(), true);
+        assert!(Config::default().verify_checksum());
     }
 
     #[test]
     fn config_checksum_verification_can_be_changed() {
         let mut config = Config::default();
         config.set_verify_checksum(false);
-        assert_eq!(config.verify_checksum(), false);
+        assert!(!config.verify_checksum());
         config.set_verify_checksum(true);
-        assert_eq!(config.verify_checksum(), true);
+        assert!(config.verify_checksum());
     }
 }

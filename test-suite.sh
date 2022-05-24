@@ -24,4 +24,4 @@ cargo test --no-default-features --features "fixs, utils-openssl, fix40"
 cargo test --no-default-features --features "derive, fix43"
 cargo test --no-default-features --features "full"
 
-RUSTDOCFLAGS="--cfg doc_cfg" cargo +nightly doc --all-features
+RUSTDOCFLAGS="--cfg doc_cfg" cargo doc --all-features

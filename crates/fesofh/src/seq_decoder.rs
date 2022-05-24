@@ -63,7 +63,7 @@ impl SeqDecoder {
         }
     }
 
-    /// Returns the current [`Frame`] if it is ready; otherwise, return a [`Error`].
+    /// Returns the current [`Frame`] if it is ready; otherwise, return a [`enum@crate::Error`].
     pub fn raw_frame(&self) -> FesofhResult<Frame<&[u8]>> {
         let slice = &self.buffer.as_slice()[..self.buffer_actual_len];
         let decode_result = Frame::<&[u8]>::deserialize(slice)?;

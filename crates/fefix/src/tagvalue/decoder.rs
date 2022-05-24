@@ -94,7 +94,10 @@ where
         unsafe { std::mem::transmute(&mut self.builder) }
     }
 
-    fn construct_message_from_frame<T>(&mut self, frame: RawFrame<T>) -> Result<Message<'_, T>, DecodeError>
+    fn construct_message_from_frame<T>(
+        &mut self,
+        frame: RawFrame<T>,
+    ) -> Result<Message<'_, T>, DecodeError>
     where
         T: AsRef<[u8]>,
     {

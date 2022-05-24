@@ -327,9 +327,9 @@ impl Decimal {
     /// let num = Decimal::new(11, -1);
     /// assert_eq!(num.pow(2), Decimal::new(121, -2));
     /// ```
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if `exp` is negative.
     pub fn pow(&self, exp: i32) -> Self {
         match exp.signum() {

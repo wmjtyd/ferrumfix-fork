@@ -117,12 +117,8 @@ impl<'a> FixValue<'a> for Tz {
             b'Z' => {
                 return Ok(Self::UTC);
             }
-            b'+' => {
-                1i32
-            }
-            b'-' => {
-                -1i32
-            }
+            b'+' => 1i32,
+            b'-' => -1i32,
             _ => return Err(ERR_INVALID),
         };
         match data.len() {

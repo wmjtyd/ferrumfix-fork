@@ -2,7 +2,7 @@
 
 use super::{dict, TagU16};
 use fnv::FnvHashSet;
-use heck::{ToUpperCamelCase, ToShoutySnakeCase};
+use heck::{ToShoutySnakeCase, ToUpperCamelCase};
 use indoc::indoc;
 use std::marker::PhantomData;
 

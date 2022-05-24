@@ -1051,10 +1051,8 @@ mod datatype {
 
         #[test]
         fn names_are_unique() {
-            let as_vec = FixDatatype::iter_all()
-                .map(|dt| dt.name());
-            let as_set = FixDatatype::iter_all()
-                .map(|dt| dt.name());
+            let as_vec = FixDatatype::iter_all().map(|dt| dt.name());
+            let as_set = FixDatatype::iter_all().map(|dt| dt.name());
             assert_eq!(as_vec.count(), as_set.count());
         }
 
@@ -1510,7 +1508,9 @@ mod quickfix {
     }
 
     impl<'a> QuickFixReader<'a> {
-        pub fn new_dict_from_xml(xml_document: &'a roxmltree::Document<'a>) -> ParseResult<Dictionary> {
+        pub fn new_dict_from_xml(
+            xml_document: &'a roxmltree::Document<'a>,
+        ) -> ParseResult<Dictionary> {
             let mut reader = Self::empty(xml_document)?;
             for child in reader.node_with_fields.children() {
                 if child.is_element() {
@@ -1556,21 +1556,15 @@ mod quickfix {
                         ParseDictionaryError::InvalidData(format!("<{}> tag not found", tag))
                     })
             };
-            let version_type = root
-                .attribute("type")
-                .ok_or_else(|| ParseDictionaryError::InvalidData(
-                    "No version attribute.".to_string(),
-                ))?;
-            let version_major =
-                root.attribute("major")
-                    .ok_or_else(|| ParseDictionaryError::InvalidData(
-                        "No major version attribute.".to_string(),
-                    ))?;
-            let version_minor =
-                root.attribute("minor")
-                    .ok_or_else(|| ParseDictionaryError::InvalidData(
-                        "No minor version attribute.".to_string(),
-                    ))?;
+            let version_type = root.attribute("type").ok_or_else(|| {
+                ParseDictionaryError::InvalidData("No version attribute.".to_string())
+            })?;
+            let version_major = root.attribute("major").ok_or_else(|| {
+                ParseDictionaryError::InvalidData("No major version attribute.".to_string())
+            })?;
+            let version_minor = root.attribute("minor").ok_or_else(|| {
+                ParseDictionaryError::InvalidData("No minor version attribute.".to_string())
+            })?;
             let version_sp = root.attribute("servicepack").unwrap_or("0");
             let version = format!(
                 "{}.{}.{}{}",

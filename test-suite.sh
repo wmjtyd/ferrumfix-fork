@@ -4,10 +4,10 @@ git submodule init
 git submodule update
 
 mkdir lib/quickfix/config
-cd lib/quickfix/config
+pushd lib/quickfix/config || exit
 cmake ..
 make
-cd ../../..
+popd || exit
 
 # Increase number of iteration for QuickCheck.
 export QUICKCHECK_TESTS="2500"

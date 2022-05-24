@@ -10,7 +10,7 @@ make
 cd ../../..
 
 # Increase number of iteration for QuickCheck.
-QUICKCHECK_TESTS="2500"
+export QUICKCHECK_TESTS="2500"
 
 # Default features
 cargo test

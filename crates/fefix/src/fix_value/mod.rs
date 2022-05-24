@@ -100,6 +100,8 @@ pub type Exchange = [u8; 4];
 pub(crate) const ERR_UTF8: &str = "Invalid byte sequence; expected UTF-8 valid bytes.";
 pub(crate) const ERR_INT_INVALID: &str = "Invalid integer digits.";
 pub(crate) const ERR_TIME: &str = "Invalid time.";
+#[allow(dead_code)] // -- it will be used on `full` feature
+pub(crate) const ERR_DECIMAL: &str = "Invalid decimal number.";
 
 /// Provides (de)serialization logic for a Rust type as FIX field values.
 ///

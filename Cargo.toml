@@ -4,6 +4,6 @@ lto = "thin"
 [workspace]
 members = [
     "crates/*",
-    # "examples/*",
+    "examples/*",
     # "tests/*",
 ]

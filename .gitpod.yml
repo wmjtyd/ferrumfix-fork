@@ -3,11 +3,10 @@
 # and commit this file to your remote git repository to share the goodness with others.
 
 tasks:
-  - init: |
-      # Install udeps
-      cargo install cargo-udeps
-
-      # Pre-run check, clippy and build
+  - name: Install cargo-udeps
+    init: cargo install cargo-udeps
+  - name: Pre-run check, clippy and build
+    init: |
       cargo check
       cargo clippy
       cargo build

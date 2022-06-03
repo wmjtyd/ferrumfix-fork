@@ -6,8 +6,9 @@ tasks:
   - name: Install cargo-udeps
     init: cargo install cargo-udeps
   - name: Pre-run check, clippy and build
-    init: |
+    before:
       cargo check
+    init: |
       cargo clippy
       cargo build
 vscode:

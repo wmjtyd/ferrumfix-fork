@@ -3,12 +3,22 @@
 # and commit this file to your remote git repository to share the goodness with others.
 
 tasks:
+  - name: Prepare Rust components
+    before: |
+      # It is a little hacky way to prevent
+      # the rustup concurrent issue…
+      cargo -V
+      gp sync-done rust-installation
   - name: Install cargo-udeps
-    init: cargo install cargo-udeps
+    init: |
+      gp sync-await rust-installation
+      cargo install cargo-udeps
   - name: Pre-run check, clippy and build
-    before:
+    before: |
+      gp sync-await rust-installation
       cargo check
     init: |
+      gp sync-await rust-installation
       cargo clippy
       cargo build
 vscode:
@@ -22,4 +32,3 @@ vscode:
     - "eamodio.gitlens"
     # Live Server
     - "ritwickdey.LiveServer"
-

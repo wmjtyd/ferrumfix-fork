@@ -295,7 +295,7 @@ where
                 return Response::None;
             }
             b"5" => {
-                return Response::OutboundBytes(self.on_logout(msg));
+                return Response::OutboundBytes(self.on_logout(None));
             }
             b"0" => {
                 self.on_heartbeat(msg);
@@ -352,16 +352,18 @@ where
         self.make_resend_request(begin_seq_num, end_seq_num);
     }
 
-    fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8] {
+    fn on_logout(&mut self, logout_msg: Option<&[u8]>) -> &[u8] {
+        let logout_msg = logout_msg.unwrap_or(b"Logout");
+
         let fix_message = {
-            let msg_seq_num = self.next();
+            let msg_seq_num = self.msg_seq_num_outbound.next();
             let begin_string = self.config.begin_string();
             let mut msg = self
                 .encoder
                 .start_message(begin_string, &mut self.buffer, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
-            msg.set_fv_with_key(&TEXT, "Logout");
+            msg.set_fv_with_key(&TEXT, logout_msg);
             msg.done()
         };
         fix_message.0
@@ -547,11 +549,12 @@ impl MessageBuilder {
     }
 }
 
-struct ResponseData<'a> {
-    pub begin_stringt: &'a [u8],
-    pub msg_type: &'a [u8],
-    pub msg_seq_num: u32,
-}
+// #[derive(Default, Debug)]
+// struct ResponseData<'a> {
+//     pub begin_stringt: &'a [u8],
+//     pub msg_type: &'a [u8],
+//     pub msg_seq_num: u32,
+// }
 
 pub trait FixConnector<'a, B, C, V = MockedVerifyImplementation>
 where
@@ -592,7 +595,7 @@ where
 
     fn on_resend_request(&self, msg: &Message<&[u8]>);
 
-    fn on_logout(&mut self, data: ResponseData, _msg: &Message<&[u8]>) -> &[u8];
+    fn on_logout(&mut self, logout_msg: Option<&[u8]>) -> &[u8];
 
     //    fn add_seqnum(&self, msg: &mut RawEncoderState) {
     //        msg.add_field(tags::MSG_SEQ_NUM, self.seq_numbers().next_outbound());

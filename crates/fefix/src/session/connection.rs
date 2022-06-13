@@ -571,13 +571,13 @@ where
 
     fn verifier(&self) -> V;
 
-    fn dispatch_by_msg_type(&self, msg_type: &[u8], msg: Message<&[u8]>) -> Response;
+    fn dispatch_by_msg_type(&mut self, msg_type: &[u8], msg: Message<&[u8]>) -> Response;
 
     /// Callback for processing incoming FIX application messages.
-    fn on_inbound_app_message(&mut self, message: Message<&[u8]>) -> Result<(), Self::Error>;
+    fn on_inbound_app_message(&self, message: Message<&[u8]>) -> Result<(), Self::Error>;
 
     /// Callback for post-processing outbound FIX messages.
-    fn on_outbound_message(&mut self, message: &[u8]) -> Result<(), Self::Error>;
+    fn on_outbound_message(&self, message: &[u8]) -> Result<(), Self::Error>;
 
     fn environment(&self) -> Environment;
 
@@ -588,14 +588,14 @@ where
     fn msg_seq_num(&mut self) -> &mut MsgSeqNumCounter;
 
     fn on_inbound_message(
-        &'a mut self,
+        &self,
         msg: Message<&[u8]>,
         builder: MessageBuilder,
-    ) -> Response<'a>;
+    ) -> Response<'_>;
 
     fn on_resend_request(&self, msg: &Message<&[u8]>);
 
-    fn on_logout(&mut self, logout_msg: Option<&[u8]>) -> &[u8];
+    fn on_logout(&self, logout_msg: Option<&[u8]>) -> &[u8];
 
     //    fn add_seqnum(&self, msg: &mut RawEncoderState) {
     //        msg.add_field(tags::MSG_SEQ_NUM, self.seq_numbers().next_outbound());
@@ -607,29 +607,29 @@ where
     //    }
     //
     //    #[must_use]
-    fn on_heartbeat_is_due(&mut self) -> &[u8];
+    fn on_heartbeat_is_due(&self) -> &[u8];
 
-    fn set_sender_and_target(&'a self, msg: &mut impl FvWrite<'a, Key = u32>);
+    fn set_sender_and_target(&mut self, msg: &mut impl FvWrite<'a, Key = u32>);
 
-    fn set_sending_time(&'a self, msg: &mut impl FvWrite<'a, Key = u32>);
+    fn set_sending_time(&mut self, msg: &mut impl FvWrite<'a, Key = u32>);
 
-    fn set_header_details(&'a self, _msg: &mut impl FvWrite<'a, Key = u32>) {}
+    fn set_header_details(&mut self, _msg: &mut impl FvWrite<'a, Key = u32>) {}
 
-    fn on_heartbeat(&mut self, _msg: Message<&[u8]>);
+    fn on_heartbeat(&self, _msg: Message<&[u8]>);
 
-    fn on_test_request(&mut self, msg: Message<&[u8]>) -> &[u8];
+    fn on_test_request(&self, msg: Message<&[u8]>) -> &[u8];
 
-    fn on_wrong_environment(&mut self, _message: Message<&[u8]>) -> Response;
+    fn on_wrong_environment(&self, _message: Message<&[u8]>) -> Response;
     fn generate_error_seqnum_too_low(&mut self) -> &[u8];
 
-    fn on_missing_seqnum(&mut self, _message: Message<&[u8]>) -> Response {
+    fn on_missing_seqnum(&self, _message: Message<&[u8]>) -> Response {
         self.make_logout(errs::missing_field("MsgSeqNum", MSG_SEQ_NUM))
     }
 
-    fn on_low_seqnum(&mut self, _message: Message<&[u8]>) -> Response;
+    fn on_low_seqnum(&self, _message: Message<&[u8]>) -> Response;
 
     fn on_reject(
-        &mut self,
+        &self,
         _ref_seq_num: u64,
         ref_tag: Option<u32>,
         ref_msg_type: Option<&[u8]>,
@@ -643,11 +643,11 @@ where
 
     fn make_resend_request(&mut self, start: u64, end: u64) -> Response;
 
-    fn on_high_seqnum(&mut self, msg: Message<&[u8]>) -> Response;
+    fn on_high_seqnum(&self, msg: Message<&[u8]>) -> Response;
 
-    fn on_logon(&mut self, _logon: Message<&[u8]>);
+    fn on_logon(&self, _logon: Message<&[u8]>);
 
-    fn on_application_message(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a>;
+    fn on_application_message(&self, msg: Message<'a, &'a [u8]>) -> Response<'a>;
 }
 
 //fn add_time_to_msg(mut msg: EncoderHandle) {

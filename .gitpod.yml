@@ -25,7 +25,7 @@ vscode:
   extensions:
     # Rust
     - "Zerotaskx.rust-extension-pack"
-    - "rust-lang.rust-analyzer"
+    - "Swellaby.rust-pack"
     # Git
     - "mhutchie.git-graph"
     - "donjayamanne.githistory"

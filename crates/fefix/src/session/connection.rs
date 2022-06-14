@@ -11,6 +11,8 @@ use std::cell::RefCell;
 use std::marker::{PhantomData, Unpin};
 use std::pin::Pin;
 use std::rc::Rc;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -36,23 +38,44 @@ const SENDING_TIME_ACCURACY_PROBLEM: u32 = 10;
 
 // type CowMessage<'a, T> = Message<'a, Cow<'a, T>>;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MsgSeqNumCounter(pub u64);
+#[derive(Debug)]
+pub struct MsgSeqNumCounter(pub AtomicU64);
 
 impl MsgSeqNumCounter {
-    pub const START: Self = Self(0);
+    pub const START: Self = Self(AtomicU64::new(0));
 
     #[inline]
-    pub fn next(&mut self) -> u64 {
-        self.0 += 1;
-        self.0
+    pub fn next(&self) -> u64 {
+        self.0.fetch_add(1, Ordering::AcqRel) + 1
     }
 
     #[inline]
     pub fn expected(&self) -> u64 {
-        self.0 + 1
+        self.load() + 1
+    }
+
+    #[inline]
+    pub fn load(&self) -> u64 {
+        self.0.load(Ordering::Acquire)
     }
 }
+
+impl PartialEq for MsgSeqNumCounter {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.load(Ordering::Acquire) == other.0.load(Ordering::Acquire)
+    }
+}
+
+impl std::ops::Add<u64> for MsgSeqNumCounter {
+    type Output = Self;
+
+    fn add(self, other: u64) -> Self::Output {
+        self.0.fetch_add(other, Ordering::AcqRel);
+        self
+    }
+}
+
+impl Eq for MsgSeqNumCounter {}
 
 impl Iterator for MsgSeqNumCounter {
     type Item = u64;
@@ -68,10 +91,10 @@ pub enum Response<'a> {
     None,
     ResetHeartbeat,
     TerminateTransport,
-    Application(CowMessage<'a, [u8]>),
+    Application(Rc<CowMessage<'a, [u8]>>),
     Session(Cow<'a, [u8]>),
-    Inbound(CowMessage<'a, [u8]>),
-    Outbound(CowMessage<'a, [u8]>),
+    Inbound(Rc<CowMessage<'a, [u8]>>),
+    Outbound(Rc<CowMessage<'a, [u8]>>),
     OutboundBytes(Cow<'a, [u8]>),
     Resend {
         range: (),
@@ -88,7 +111,7 @@ pub struct FixConnection<B, C = Config> {
     config: C,
     backend: B,
     encoder: Rc<RefCell<Encoder>>,
-    buffer: Vec<u8>,
+    buffer: Rc<RefCell<Vec<u8>>>,
     msg_seq_num_inbound: MsgSeqNumCounter,
     msg_seq_num_outbound: MsgSeqNumCounter,
 }
@@ -105,7 +128,7 @@ where
             config,
             backend,
             encoder: Rc::new(RefCell::new(Encoder::default())),
-            buffer: vec![],
+            buffer: Rc::new(RefCell::new(vec![])),
             msg_seq_num_inbound: MsgSeqNumCounter::START,
             msg_seq_num_outbound: MsgSeqNumCounter::START,
         }
@@ -132,7 +155,7 @@ where
         O: AsyncWrite + Unpin,
     {
         let encoder = self.encoder.clone();
-        let encoder_ref = encoder.borrow_mut();
+        let mut encoder_ref = encoder.borrow_mut();
 
         let logon = {
             let begin_string = self.config.begin_string();
@@ -140,8 +163,10 @@ where
             let target_comp_id = self.config.target_comp_id();
             let heartbeat = self.config.heartbeat().as_secs();
             let msg_seq_num = self.msg_seq_num_outbound.next();
+            let buf_mut = self.buffer.borrow();
+            let buf: &mut Vec<u8> = buf_mut.as_mut();
             let mut msg = encoder_ref
-                .start_message(begin_string, &mut self.buffer, b"A");
+                .start_message(begin_string, buf, b"A");
             msg.set_fv_with_key(&SENDER_COMP_ID, sender_comp_id);
             msg.set_fv_with_key(&TARGET_COMP_ID, target_comp_id);
             msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now().timestamp_millis());
@@ -158,12 +183,13 @@ where
             let buffer = decoder.supply_buffer();
             input.read_exact(buffer).await.unwrap();
             if let Ok(Some(())) = decoder.parse() {
-                logon = decoder.message();
+                logon = Rc::new(decoder.message());
                 break;
             }
         }
-        self.on_logon(logon);
-        self.backend.on_inbound_message(logon, true).ok();
+
+        self.on_logon(logon.clone());
+        self.backend.on_inbound_message(logon.clone(), true).ok();
         decoder.clear();
         self.msg_seq_num_inbound.next();
         self.backend.on_successful_handshake().ok();
@@ -182,7 +208,9 @@ where
                 .expect("The connection died unexpectedly.");
             match event {
                 LlEvent::Message(msg) => {
-                    let response = self.on_inbound_message(msg, unimplemented!());
+                    let msg = Rc::new(msg);
+                    let msg_builder = MessageBuilder {};
+                    let response = self.on_inbound_message(msg, msg_builder);
                     match response {
                         Response::OutboundBytes(bytes) => {
                             output.write_all(&*bytes).await.unwrap();
@@ -220,9 +248,9 @@ pub trait Verify {
 
     fn verify_begin_string(&self, begin_string: &[u8]) -> Result<(), Self::Error>;
 
-    fn verify_test_message_indicator(&self, msg: CowMessage<[u8]>) -> Result<(), Self::Error>;
+    fn verify_test_message_indicator(&self, msg: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error>;
 
-    fn verify_sending_time(&self, msg: CowMessage<[u8]>) -> Result<(), Self::Error>;
+    fn verify_sending_time(&self, msg: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error>;
 }
 
 /// The mocked [`Verify`] implementation.
@@ -237,11 +265,11 @@ impl Verify for MockedVerifyImplementation {
         unimplemented!()
     }
 
-    fn verify_test_message_indicator(&self, _msg: CowMessage<[u8]>) -> Result<(), Self::Error> {
+    fn verify_test_message_indicator(&self, _msg: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error> {
         unimplemented!()
     }
 
-    fn verify_sending_time(&self, _msg: CowMessage<[u8]>) -> Result<(), Self::Error> {
+    fn verify_sending_time(&self, _msg: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error> {
         unimplemented!()
     }
 }
@@ -254,7 +282,7 @@ where
     type Error<'a> = Cow<'a, [u8]> where B: 'a, C: 'a;
     type Msg<'a> = EncoderHandle<'a, Vec<u8>> where B: 'a, C: 'a;
 
-    fn on_inbound_app_message(&self, message: CowMessage<[u8]>) -> Result<(), Self::Error<'_>> {
+    fn on_inbound_app_message(&self, message: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error<'_>> {
         todo!()
     }
 
@@ -290,7 +318,7 @@ where
         todo!()
     }
 
-    fn dispatch_by_msg_type<'a>(&'a mut self, msg_type: &[u8], msg: CowMessage<'a, [u8]>) -> Response<'a> {
+    fn dispatch_by_msg_type<'a>(&'a mut self, msg_type: &[u8], msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a> {
         match msg_type {
             b"A" => {
                 self.on_logon(msg);
@@ -318,10 +346,10 @@ where
 
     fn on_inbound_message<'a>(
         &'a self,
-        msg: CowMessage<'a, [u8]>,
+        msg: Rc<CowMessage<'a, [u8]>>,
         builder: MessageBuilder,
     ) -> Response<'a> {
-        if self.verifier().verify_test_message_indicator(msg).is_err() {
+        if self.verifier().verify_test_message_indicator(msg.clone()).is_err() {
             return self.on_wrong_environment(msg);
         }
 
@@ -342,20 +370,20 @@ where
         // Increment immediately.
         self.msg_seq_num_inbound.next();
 
-        if self.verifier().verify_sending_time(msg).is_err() {
+        if self.verifier().verify_sending_time(msg.clone()).is_err() {
             return self.make_reject_for_inaccurate_sending_time(msg);
         }
 
         let msg_type = if let Ok(x) = msg.fv::<Cow<[u8]>>(MSG_TYPE) {
             x
         } else {
-            self.on_inbound_app_message(msg).ok();
-            return self.on_application_message(msg);
+            self.on_inbound_app_message(msg.clone()).ok();
+            return self.on_application_message(msg.clone());
         };
-        self.dispatch_by_msg_type(&*msg_type, msg)
+        self.dispatch_by_msg_type(&*msg_type, msg.clone())
     }
 
-    fn on_resend_request(&self, msg: &CowMessage<[u8]>) {
+    fn on_resend_request(&self, msg: &Rc<CowMessage<[u8]>>) {
         let begin_seq_num = msg.fv(BEGIN_SEQ_NO).unwrap();
         let end_seq_num = msg.fv(END_SEQ_NO).unwrap();
         self.make_resend_request(begin_seq_num, end_seq_num);
@@ -367,10 +395,11 @@ where
         let fix_message = {
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let begin_string = self.config.begin_string();
+            let buf: &mut Vec<u8> = self.buffer.borrow().as_mut();
             let mut msg = self
                 .encoder
                 .borrow_mut()
-                .start_message(begin_string, &mut self.buffer, b"5");
+                .start_message(begin_string, buf, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, logout_msg);
@@ -383,10 +412,11 @@ where
         let fix_message = {
             let begin_string = self.config.begin_string();
             let msg_seq_num = self.msg_seq_num_outbound.next();
+            let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
             let mut msg = self
                 .encoder
                 .borrow_mut()
-                .start_message(begin_string, &mut self.buffer, b"0");
+                .start_message(begin_string, buf, b"0");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             self.set_sending_time(&mut msg);
@@ -408,19 +438,20 @@ where
         todo!();
     }
 
-    fn on_heartbeat(&self, _msg: CowMessage<[u8]>) {
+    fn on_heartbeat(&self, _msg: Rc<CowMessage<[u8]>>) {
         // TODO: verify stuff.
         todo!();
     }
 
-    fn on_test_request(&self, msg: CowMessage<[u8]>) -> &[u8] {
+    fn on_test_request(&self, msg: Rc<CowMessage<[u8]>>) -> &[u8] {
         let test_req_id = msg.fv::<&[u8]>(TEST_REQ_ID).unwrap();
         let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
+        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
         let mut msg = self
             .encoder
             .borrow_mut()
-            .start_message(begin_string, &mut self.buffer, b"1");
+            .start_message(begin_string, buf, b"1");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         self.set_sending_time(&mut msg);
@@ -428,18 +459,19 @@ where
         msg.done().0
     }
 
-    fn on_wrong_environment(&self, _message: CowMessage<[u8]>) -> Response {
+    fn on_wrong_environment(&self, _message: Rc<CowMessage<[u8]>>) -> Response {
         self.make_logout(errs::production_env())
     }
 
     fn generate_error_seqnum_too_low(&mut self) -> &[u8] {
         let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
-        let text = errs::msg_seq_num(self.msg_seq_num_inbound.0 + 1);
+        let text = errs::msg_seq_num(self.msg_seq_num_inbound.next());
+        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
         let mut msg = self
             .encoder
             .borrow_mut()
-            .start_message(begin_string, &mut self.buffer, b"FIXME");
+            .start_message(begin_string, buf, b"FIXME");
         msg.set_fv_with_key(&MSG_TYPE, "5");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -447,12 +479,12 @@ where
         msg.done().0
     }
 
-    fn on_missing_seqnum(&self, _message: CowMessage<[u8]>) -> Response {
+    fn on_missing_seqnum(&self, _message: Rc<CowMessage<[u8]>>) -> Response {
         self.make_logout(errs::missing_field("MsgSeqNum", MSG_SEQ_NUM))
     }
 
-    fn on_low_seqnum(&self, _message: CowMessage<[u8]>) -> Response {
-        self.make_logout(errs::msg_seq_num(self.msg_seq_num_inbound.0 + 1))
+    fn on_low_seqnum(&self, _message: Rc<CowMessage<[u8]>>) -> Response {
+        self.make_logout(errs::msg_seq_num(self.msg_seq_num_inbound.next()))
     }
 
     fn on_reject(
@@ -467,10 +499,11 @@ where
         let sender_comp_id = self.sender_comp_id();
         let target_comp_id = self.target_comp_id();
         let msg_seq_num = self.msg_seq_num_outbound.next();
+        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
         let mut msg = self
             .encoder
             .borrow_mut()
-            .start_message(begin_string, &mut self.buffer, b"3");
+            .start_message(begin_string, buf, b"3");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         if let Some(ref_tag) = ref_tag {
@@ -484,7 +517,7 @@ where
         Response::OutboundBytes(msg.done().0.into())
     }
 
-    fn make_reject_for_inaccurate_sending_time(&mut self, offender: CowMessage<[u8]>) -> Response {
+    fn make_reject_for_inaccurate_sending_time(&self, offender: Rc<CowMessage<[u8]>>) -> Response {
         let ref_seq_num = offender.fv::<u64>(MSG_SEQ_NUM).unwrap();
         let ref_msg_type = offender.fv::<&str>(MSG_TYPE).unwrap();
         self.on_reject(
@@ -496,16 +529,17 @@ where
         )
     }
 
-    fn make_logout(&mut self, text: String) -> Response {
+    fn make_logout(&self, text: String) -> Response {
         let fix_message = {
             let begin_string = self.config.begin_string();
             let sender_comp_id = self.sender_comp_id();
             let target_comp_id = self.target_comp_id();
             let msg_seq_num = self.msg_seq_num_outbound.next();
+            let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
             let mut msg = self
                 .encoder
                 .borrow_mut()
-                .start_message(begin_string, &mut self.buffer, b"5");
+                .start_message(begin_string, buf, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, text.as_str());
@@ -515,12 +549,13 @@ where
         Response::OutboundBytes(fix_message.0.into())
     }
 
-    fn make_resend_request(&mut self, start: u64, end: u64) -> Response {
+    fn make_resend_request(&self, start: u64, end: u64) -> Response {
         let begin_string = self.config.begin_string();
+        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
         let mut msg = self
             .encoder
             .borrow_mut()
-            .start_message(begin_string, &mut self.buffer, b"2");
+            .start_message(begin_string, buf, b"2");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_seqnum(msg);
@@ -529,24 +564,25 @@ where
         Response::OutboundBytes(msg.done().0.into())
     }
 
-    fn on_high_seqnum(&self, msg: CowMessage<[u8]>) -> Response {
+    fn on_high_seqnum(&self, msg: Rc<CowMessage<[u8]>>) -> Response {
         let msg_seq_num = msg.fv(MSG_SEQ_NUM).unwrap();
         self.make_resend_request(self.seq_numbers().next_inbound(), msg_seq_num);
         todo!()
     }
 
-    fn on_logon(&self, _logon: CowMessage<[u8]>) {
+    fn on_logon(&self, _logon: Rc<CowMessage<[u8]>>) {
         let begin_string = self.config.begin_string();
+        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
         let mut msg = self
             .encoder
             .borrow_mut()
-            .start_message(begin_string, &mut self.buffer, b"A");
+            .start_message(begin_string, buf, b"A");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_sending_time(msg);
     }
 
-    fn on_application_message<'a>(&self, msg: CowMessage<'a, [u8]>) -> Response<'a> {
+    fn on_application_message<'a>(&self, msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a> {
         Response::Application(msg)
     }
 }
@@ -591,10 +627,10 @@ where
 
     fn verifier(&self) -> V;
 
-    fn dispatch_by_msg_type<'a>(&'a mut self, msg_type: &[u8], msg: CowMessage<'a, [u8]>) -> Response<'a>;
+    fn dispatch_by_msg_type<'a>(&'a mut self, msg_type: &[u8], msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a>;
 
     /// Callback for processing incoming FIX application messages.
-    fn on_inbound_app_message(&self, message: CowMessage<[u8]>) -> Result<(), Self::Error<'_>>;
+    fn on_inbound_app_message(&self, message: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error<'_>>;
 
     /// Callback for post-processing outbound FIX messages.
     fn on_outbound_message(&self, message: &[u8]) -> Result<(), Self::Error<'_>>;
@@ -609,11 +645,11 @@ where
 
     fn on_inbound_message<'a>(
         &'a self,
-        msg: CowMessage<'a, [u8]>,
+        msg: Rc<CowMessage<'a, [u8]>>,
         builder: MessageBuilder,
     ) -> Response<'a>;
 
-    fn on_resend_request(&self, msg: &CowMessage<[u8]>);
+    fn on_resend_request(&self, msg: &Rc<CowMessage<[u8]>>);
 
     fn on_logout(&self, logout_msg: Option<&[u8]>) -> &[u8];
 
@@ -635,18 +671,18 @@ where
 
     fn set_header_details<'a>(&self, _msg: &mut impl FvWrite<'a, Key = u32>) {}
 
-    fn on_heartbeat(&self, _msg: CowMessage<[u8]>);
+    fn on_heartbeat(&self, _msg: Rc<CowMessage<[u8]>>);
 
-    fn on_test_request(&self, msg: CowMessage<[u8]>) -> &[u8];
+    fn on_test_request(&self, msg: Rc<CowMessage<[u8]>>) -> &[u8];
 
-    fn on_wrong_environment(&self, _message: CowMessage<[u8]>) -> Response;
+    fn on_wrong_environment(&self, _message: Rc<CowMessage<[u8]>>) -> Response;
     fn generate_error_seqnum_too_low(&mut self) -> &[u8];
 
-    fn on_missing_seqnum(&self, _message: CowMessage<[u8]>) -> Response {
+    fn on_missing_seqnum(&self, _message: Rc<CowMessage<[u8]>>) -> Response {
         self.make_logout(errs::missing_field("MsgSeqNum", MSG_SEQ_NUM))
     }
 
-    fn on_low_seqnum(&self, _message: CowMessage<[u8]>) -> Response;
+    fn on_low_seqnum(&self, _message: Rc<CowMessage<[u8]>>) -> Response;
 
     fn on_reject(
         &self,
@@ -657,17 +693,17 @@ where
         err_text: String,
     ) -> Response;
 
-    fn make_reject_for_inaccurate_sending_time(&mut self, offender: CowMessage<[u8]>) -> Response;
+    fn make_reject_for_inaccurate_sending_time(&self, offender: Rc<CowMessage<[u8]>>) -> Response;
 
-    fn make_logout(&mut self, text: String) -> Response;
+    fn make_logout(&self, text: String) -> Response;
 
-    fn make_resend_request(&mut self, start: u64, end: u64) -> Response;
+    fn make_resend_request(&self, start: u64, end: u64) -> Response;
 
-    fn on_high_seqnum(&self, msg: CowMessage<[u8]>) -> Response;
+    fn on_high_seqnum(&self, msg: Rc<CowMessage<[u8]>>) -> Response;
 
-    fn on_logon(&self, _logon: CowMessage<[u8]>);
+    fn on_logon(&self, _logon: Rc<CowMessage<[u8]>>);
 
-    fn on_application_message<'a>(&self, msg: CowMessage<'a, [u8]>) -> Response<'a>;
+    fn on_application_message<'a>(&self, msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a>;
 }
 
 //fn add_time_to_msg(mut msg: EncoderHandle) {

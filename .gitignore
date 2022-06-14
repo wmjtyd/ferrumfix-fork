@@ -2,3 +2,4 @@
 generated_*.rs
 target/
 **/*.rs.bk
+.idea/

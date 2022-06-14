@@ -112,7 +112,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
- "time 0.1.44",
+ "time",
  "winapi",
 ]
 
@@ -281,27 +281,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dirs-next"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b98cf8ebf19c3d1b223e151f99a4f9f0690dca41414773390fc824184ac833e1"
-dependencies = [
- "cfg-if",
- "dirs-sys-next",
-]
-
-[[package]]
-name = "dirs-sys-next"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
-dependencies = [
- "libc",
- "redox_users",
- "winapi",
-]
-
-[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -330,82 +309,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "example_coinbase_codegen"
-version = "0.1.0"
-dependencies = [
- "fefix",
- "rust_decimal",
-]
-
-[[package]]
-name = "example_decode_fix"
-version = "0.1.0"
-dependencies = [
- "fefix",
-]
-
-[[package]]
-name = "example_decode_fix_stream"
-version = "0.1.0"
-dependencies = [
- "fefix",
-]
-
-[[package]]
-name = "example_encode_new_order_single"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "decimal",
- "fefix",
- "rust_decimal",
- "rust_decimal_macros",
-]
-
-[[package]]
-name = "example_json_encoding"
-version = "0.1.0"
-dependencies = [
- "fefix",
-]
-
-[[package]]
-name = "example_tcp_sofh"
-version = "0.1.0"
-dependencies = [
- "fesofh",
-]
-
-[[package]]
-name = "example_tcp_sofh_tokio_codec"
-version = "0.1.0"
-dependencies = [
- "fesofh",
- "futures-util",
- "tokio",
- "tokio-util 0.6.10",
-]
-
-[[package]]
-name = "example_tls_fixua_acceptor"
-version = "0.1.0"
-dependencies = [
- "fefix",
-]
-
-[[package]]
-name = "example_tokio_fix_initiator"
-version = "0.1.0"
-dependencies = [
- "fefix",
- "slog",
- "slog-async",
- "slog-term",
- "tokio",
- "tokio-util 0.6.10",
-]
-
-[[package]]
 name = "fefast"
 version = "0.1.0"
 dependencies = [
@@ -422,7 +325,7 @@ dependencies = [
  "roxmltree",
  "rust_decimal",
  "slog",
- "tokio-util 0.7.2",
+ "tokio-util",
 ]
 
 [[package]]
@@ -454,7 +357,7 @@ dependencies = [
  "syn",
  "thiserror",
  "tokio",
- "tokio-util 0.7.2",
+ "tokio-util",
  "uuid",
 ]
 
@@ -492,7 +395,7 @@ dependencies = [
  "rust_decimal",
  "slog",
  "thiserror",
- "tokio-util 0.7.2",
+ "tokio-util",
 ]
 
 [[package]]
@@ -809,15 +712,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num_threads"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2819ce041d2ee131036f4fc9d6ae7ae125a3a40e97ba64d04fe799ad9dabbb44"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1088,17 +982,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "redox_users"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b033d837a7cf162d7993aded9304e30a83213c648b6e389db233191f891e5c2b"
-dependencies = [
- "getrandom",
- "redox_syscall",
- "thiserror",
-]
-
-[[package]]
 name = "regex"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1143,16 +1026,6 @@ dependencies = [
  "arrayvec",
  "num-traits",
  "serde",
-]
-
-[[package]]
-name = "rust_decimal_macros"
-version = "1.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72030e106b3dc8cb4c965faf057036f270cdd226a076804d19e3de0d27fc309b"
-dependencies = [
- "quote",
- "rust_decimal",
 ]
 
 [[package]]
@@ -1281,31 +1154,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8347046d4ebd943127157b94d63abb990fcf729dc4e9978927fdf4ac3c998d06"
 
 [[package]]
-name = "slog-async"
-version = "2.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "766c59b252e62a34651412870ff55d8c4e6d04df19b43eecb2703e417b097ffe"
-dependencies = [
- "crossbeam-channel",
- "slog",
- "take_mut",
- "thread_local",
-]
-
-[[package]]
-name = "slog-term"
-version = "2.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87d29185c55b7b258b4f120eab00f48557d4d9bc814f41713f449d35b0f8977c"
-dependencies = [
- "atty",
- "slog",
- "term",
- "thread_local",
- "time 0.3.9",
-]
-
-[[package]]
 name = "smallvec"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1358,27 +1206,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "take_mut"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f764005d11ee5f36500a149ace24e00e3da98b0158b3e2d53a7495660d3f4d60"
-
-[[package]]
 name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
-
-[[package]]
-name = "term"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c59df8ac95d96ff9bede18eb7300b0fda5e5d8d90960e76f8e14ae765eedbf1f"
-dependencies = [
- "dirs-next",
- "rustversion",
- "winapi",
-]
 
 [[package]]
 name = "textwrap"
@@ -1430,24 +1261,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "time"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2702e08a7a860f005826c6815dcac101b19b5eb330c27fe4a5928fec1d20ddd"
-dependencies = [
- "itoa 1.0.2",
- "libc",
- "num_threads",
- "time-macros",
-]
-
-[[package]]
-name = "time-macros"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42657b1a6f4d817cda8e7a0ace261fe0cc946cf3a80314390b22cc61ae080792"
-
-[[package]]
 name = "tinytemplate"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1486,21 +1299,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "tokio-util"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36943ee01a6d67977dd3f84a5a1d2efeb4ada3a1ae771cadfaa535d9d9fc6507"
-dependencies = [
- "bytes",
- "futures-core",
- "futures-io",
- "futures-sink",
- "log",
- "pin-project-lite",
- "tokio",
 ]
 
 [[package]]

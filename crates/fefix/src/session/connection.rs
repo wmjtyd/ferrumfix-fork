@@ -2,7 +2,7 @@ use super::{errs, Backend, Config, Configure, LlEvent, LlEventLoop};
 use crate::random_field_access::RandomFieldAccess;
 use crate::session::{Environment, SeqNumbers};
 use crate::tagvalue::FvWrite;
-use crate::tagvalue::Message;
+use crate::tagvalue::CowMessage;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
 use crate::FixValue;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -11,8 +11,6 @@ use std::marker::{PhantomData, Unpin};
 use std::pin::Pin;
 use std::time::Duration;
 use uuid::Uuid;
-
-use crate::session::CowMessageType::CowMessage;
 
 const BEGIN_SEQ_NO: u32 = 7;
 const BEGIN_STRING: u32 = 8;

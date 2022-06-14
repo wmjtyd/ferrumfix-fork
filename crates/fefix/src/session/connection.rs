@@ -6,6 +6,7 @@ use crate::tagvalue::Message;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
 use crate::FixValue;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use std::borrow::Cow;
 use std::marker::{PhantomData, Unpin};
 use std::pin::Pin;
 use std::time::Duration;
@@ -56,16 +57,16 @@ impl Iterator for MsgSeqNumCounter {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(enum_as_inner::EnumAsInner))]
+// #[cfg_attr(test, derive(enum_as_inner::EnumAsInner))]
 pub enum Response<'a> {
     None,
     ResetHeartbeat,
     TerminateTransport,
-    Application(Message<'a, &'a [u8]>),
-    Session(&'a [u8]),
-    Inbound(Message<'a, &'a [u8]>),
-    Outbound(Message<'a, &'a [u8]>),
-    OutboundBytes(&'a [u8]),
+    Application(Message<'a, Cow<'a, [u8]>>),
+    Session(Cow<'a, [u8]>),
+    Inbound(Message<'a, Cow<'a, [u8]>>),
+    Outbound(Message<'a, Cow<'a, [u8]>>),
+    OutboundBytes(Cow<'a, [u8]>),
     Resend {
         range: (),
     },
@@ -176,8 +177,8 @@ where
                     let response = self.on_inbound_message(msg, unimplemented!());
                     match response {
                         Response::OutboundBytes(bytes) => {
-                            output.write_all(bytes).await.unwrap();
-                            self.on_outbound_message(bytes).ok();
+                            output.write_all(&*bytes).await.unwrap();
+                            self.on_outbound_message(&*bytes).ok();
                         }
                         Response::ResetHeartbeat => {
                             event_loop.ping_heartbeat();
@@ -237,24 +238,24 @@ impl Verify for MockedVerifyImplementation {
     }
 }
 
-impl<'a, B, C> FixConnector<'a, B, C> for FixConnection<B, C>
+impl<B, C> FixConnector<B, C> for FixConnection<B, C>
 where
     B: Backend,
     C: Configure,
 {
-    type Error = &'a [u8];
-    type Msg = EncoderHandle<'a, Vec<u8>>;
+    type Error<'a> = &'a [u8];
+    type Msg<'a> = EncoderHandle<'a, Vec<u8>>;
 
-    fn on_inbound_app_message(&mut self, message: Message<&[u8]>) -> Result<(), Self::Error> {
-        Ok(())
+    fn on_inbound_app_message(&self, message: Message<&[u8]>) -> Result<(), Self::Error<'_>> {
+        todo!()
     }
 
-    fn on_outbound_message(&mut self, message: &[u8]) -> Result<(), Self::Error> {
-        Ok(())
+    fn on_outbound_message(&self, message: &[u8]) -> Result<(), Self::Error<'_>> {
+        todo!()
     }
 
     fn verifier(&self) -> MockedVerifyImplementation /* FIXME */ {
-        unimplemented!()
+        todo!()
     }
 
     fn environment(&self) -> Environment {
@@ -308,10 +309,10 @@ where
     }
 
     fn on_inbound_message(
-        &'a mut self,
+        &self,
         msg: Message<&[u8]>,
         builder: MessageBuilder,
-    ) -> Response<'a> {
+    ) -> Response<'_> {
         if self.verifier().verify_test_message_indicator(msg).is_err() {
             return self.on_wrong_environment(msg);
         }
@@ -384,19 +385,22 @@ where
         fix_message.0
     }
 
-    fn set_sender_and_target(&'a self, msg: &mut impl FvWrite<'a, Key = u32>) {
+    fn set_sender_and_target<'a>(&self, msg: &mut impl FvWrite<'a, Key = u32>) {
         msg.set_fv_with_key(&SENDER_COMP_ID, self.sender_comp_id());
         msg.set_fv_with_key(&TARGET_COMP_ID, self.target_comp_id());
     }
 
-    fn set_sending_time(&'a self, msg: &mut impl FvWrite<'a, Key = u32>) {
+    fn set_sending_time<'a>(&self, msg: &mut impl FvWrite<'a, Key = u32>) {
         msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now().timestamp_millis());
     }
 
-    fn set_header_details(&'a self, _msg: &mut impl FvWrite<'a, Key = u32>) {}
+    fn set_header_details<'a>(&self, _msg: &mut impl FvWrite<'a, Key = u32>) {
+        todo!();
+    }
 
     fn on_heartbeat(&mut self, _msg: Message<&[u8]>) {
         // TODO: verify stuff.
+        todo!();
     }
 
     fn on_test_request(&mut self, msg: Message<&[u8]>) -> &[u8] {
@@ -526,7 +530,7 @@ where
         //self.add_sending_time(msg);
     }
 
-    fn on_application_message(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a> {
+    fn on_application_message<'a>(&mut self, msg: Message<'a, &'a [u8]>) -> Response<'a> {
         Response::Application(msg)
     }
 }
@@ -562,8 +566,8 @@ where
     C: Configure,
     V: Verify,
 {
-    type Error<'a>: FixValue<'a>;
-    type Msg<'a>: FvWrite<'a>;
+    type Error<'a>: FixValue<'a> where Self: 'a;
+    type Msg<'a>: FvWrite<'a> where Self: 'a;
 
     fn target_comp_id(&self) -> &[u8];
 
@@ -574,10 +578,10 @@ where
     fn dispatch_by_msg_type(&mut self, msg_type: &[u8], msg: Message<&[u8]>) -> Response;
 
     /// Callback for processing incoming FIX application messages.
-    fn on_inbound_app_message(&self, message: Message<&[u8]>) -> Result<(), Self::Error>;
+    fn on_inbound_app_message(&self, message: Message<&[u8]>) -> Result<(), Self::Error<'_>>;
 
     /// Callback for post-processing outbound FIX messages.
-    fn on_outbound_message(&self, message: &[u8]) -> Result<(), Self::Error>;
+    fn on_outbound_message(&self, message: &[u8]) -> Result<(), Self::Error<'_>>;
 
     fn environment(&self) -> Environment;
 
@@ -609,11 +613,11 @@ where
     //    #[must_use]
     fn on_heartbeat_is_due(&self) -> &[u8];
 
-    fn set_sender_and_target(&mut self, msg: &mut impl FvWrite<'a, Key = u32>);
+    fn set_sender_and_target<'a>(&mut self, msg: &mut impl FvWrite<'a, Key = u32>);
 
-    fn set_sending_time(&mut self, msg: &mut impl FvWrite<'a, Key = u32>);
+    fn set_sending_time<'a>(&mut self, msg: &mut impl FvWrite<'a, Key = u32>);
 
-    fn set_header_details(&mut self, _msg: &mut impl FvWrite<'a, Key = u32>) {}
+    fn set_header_details<'a>(&mut self, _msg: &mut impl FvWrite<'a, Key = u32>) {}
 
     fn on_heartbeat(&self, _msg: Message<&[u8]>);
 
@@ -647,7 +651,7 @@ where
 
     fn on_logon(&self, _logon: Message<&[u8]>);
 
-    fn on_application_message(&self, msg: Message<'a, &'a [u8]>) -> Response<'a>;
+    fn on_application_message<'a>(&self, msg: Message<'a, &'a [u8]>) -> Response<'a>;
 }
 
 //fn add_time_to_msg(mut msg: EncoderHandle) {

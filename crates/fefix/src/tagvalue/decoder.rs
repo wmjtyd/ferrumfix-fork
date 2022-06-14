@@ -349,7 +349,7 @@ where
 }
 
 /// A FIX message returned by [`Decoder`] or [`DecoderBuffered`].
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Copy, Copy)]
 pub struct Message<'a, T> {
     builder: &'a MessageBuilder<'a>,
     phantom: PhantomData<T>,

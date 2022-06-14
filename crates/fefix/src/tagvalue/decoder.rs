@@ -7,6 +7,7 @@ use crate::{
     dict::FixDatatype, Dictionary, FixValue, GetConfig, RandomFieldAccess, RepeatingGroup, TagU16,
 };
 use nohash_hasher::IntMap;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
@@ -348,8 +349,12 @@ where
     }
 }
 
+/// The utility type that represents
+/// a message with [`Cow`] smart pointer.
+pub type CowMessage<'a, T> = Message<'a, Cow<'a, T>>;
+
 /// A FIX message returned by [`Decoder`] or [`DecoderBuffered`].
-#[derive(Debug, Copy, Clone, Copy, Copy)]
+#[derive(Debug, Copy, Clone)]
 pub struct Message<'a, T> {
     builder: &'a MessageBuilder<'a>,
     phantom: PhantomData<T>,

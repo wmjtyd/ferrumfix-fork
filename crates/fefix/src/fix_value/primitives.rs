@@ -1,6 +1,6 @@
 use super::{FixValue, ZeroPadding, ERR_INT_INVALID, ERR_UTF8};
 use crate::{Buffer, BufferWriter};
-use std::fmt::Write;
+use std::{fmt::Write, borrow::Cow};
 
 const ERR_BOOL_LENGTH: &str = "Invalid length; a boolean is Y or N (1 char).";
 const ERR_BOOL_CHAR: &str = "Invalid character for boolean. Only Y and N are valid.";
@@ -230,5 +230,22 @@ impl<'a, const N: usize> FixValue<'a> for &'a [u8; N] {
     #[inline]
     fn deserialize(data: &'a [u8]) -> Result<Self, Self::Error> {
         data.try_into().map_err(|_| ())
+    }
+}
+
+
+impl<'a> FixValue<'a> for Cow<'a, [u8]>
+{
+    type Error = ();
+    type SerializeSettings = ();
+
+    fn serialize_with<B>(&self, buffer: &mut B, settings: Self::SerializeSettings) -> usize
+    where
+        B: Buffer {
+        FixValue::serialize_with(&self.as_ref(), buffer, settings)
+    }
+    
+    fn deserialize(data: &'a [u8]) -> Result<Self, Self::Error> {
+        FixValue::deserialize(data)
     }
 }

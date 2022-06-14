@@ -14,6 +14,7 @@ mod event_loop;
 mod heartbeat_rule;
 mod resend_request_range;
 mod seq_numbers;
+mod CowMessageType;
 
 pub use config::{Config, Configure};
 pub use connection::*; // FIXME: need to rewrite

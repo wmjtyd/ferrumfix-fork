@@ -7,8 +7,10 @@ use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
 use crate::FixValue;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::marker::{PhantomData, Unpin};
 use std::pin::Pin;
+use std::rc::Rc;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -85,7 +87,7 @@ pub struct FixConnection<B, C = Config> {
     uuid: Uuid,
     config: C,
     backend: B,
-    encoder: Encoder,
+    encoder: Rc<RefCell<Encoder>>,
     buffer: Vec<u8>,
     msg_seq_num_inbound: MsgSeqNumCounter,
     msg_seq_num_outbound: MsgSeqNumCounter,
@@ -102,7 +104,7 @@ where
             uuid: Uuid::new_v4(),
             config,
             backend,
-            encoder: Encoder::default(),
+            encoder: Rc::new(RefCell::new(Encoder::default())),
             buffer: vec![],
             msg_seq_num_inbound: MsgSeqNumCounter::START,
             msg_seq_num_outbound: MsgSeqNumCounter::START,
@@ -129,14 +131,16 @@ where
         I: AsyncRead + Unpin,
         O: AsyncWrite + Unpin,
     {
+        let encoder = self.encoder.clone();
+        let encoder_ref = encoder.borrow_mut();
+
         let logon = {
             let begin_string = self.config.begin_string();
             let sender_comp_id = self.config.sender_comp_id();
             let target_comp_id = self.config.target_comp_id();
             let heartbeat = self.config.heartbeat().as_secs();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let mut msg = self
-                .encoder
+            let mut msg = encoder_ref
                 .start_message(begin_string, &mut self.buffer, b"A");
             msg.set_fv_with_key(&SENDER_COMP_ID, sender_comp_id);
             msg.set_fv_with_key(&TARGET_COMP_ID, target_comp_id);
@@ -365,6 +369,7 @@ where
             let begin_string = self.config.begin_string();
             let mut msg = self
                 .encoder
+                .borrow_mut()
                 .start_message(begin_string, &mut self.buffer, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -380,6 +385,7 @@ where
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let mut msg = self
                 .encoder
+                .borrow_mut()
                 .start_message(begin_string, &mut self.buffer, b"0");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -413,6 +419,7 @@ where
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let mut msg = self
             .encoder
+            .borrow_mut()
             .start_message(begin_string, &mut self.buffer, b"1");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -431,6 +438,7 @@ where
         let text = errs::msg_seq_num(self.msg_seq_num_inbound.0 + 1);
         let mut msg = self
             .encoder
+            .borrow_mut()
             .start_message(begin_string, &mut self.buffer, b"FIXME");
         msg.set_fv_with_key(&MSG_TYPE, "5");
         self.set_sender_and_target(&mut msg);
@@ -461,6 +469,7 @@ where
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let mut msg = self
             .encoder
+            .borrow_mut()
             .start_message(begin_string, &mut self.buffer, b"3");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -495,6 +504,7 @@ where
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let mut msg = self
                 .encoder
+                .borrow_mut()
                 .start_message(begin_string, &mut self.buffer, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -509,6 +519,7 @@ where
         let begin_string = self.config.begin_string();
         let mut msg = self
             .encoder
+            .borrow_mut()
             .start_message(begin_string, &mut self.buffer, b"2");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
@@ -528,6 +539,7 @@ where
         let begin_string = self.config.begin_string();
         let mut msg = self
             .encoder
+            .borrow_mut()
             .start_message(begin_string, &mut self.buffer, b"A");
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);

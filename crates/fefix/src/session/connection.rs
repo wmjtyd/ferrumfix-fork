@@ -313,51 +313,51 @@ where
     }
 
     fn on_inbound_message<'a>(
-        &'a mut self,
+        &'a self,
         msg: CowMessage<'a, [u8]>,
         builder: MessageBuilder,
     ) -> Response<'a> {
         if self.verifier().verify_test_message_indicator(msg).is_err() {
-            return self.on_wrong_environment(&*msg);
+            return self.on_wrong_environment(msg);
         }
 
         let seq_num = if let Ok(n) = msg.fv::<u64>(MSG_SEQ_NUM) {
             let expected = self.msg_seq_num_inbound.expected();
             if n < expected {
-                return self.on_low_seqnum(&*msg);
+                return self.on_low_seqnum(msg);
             } else if n > expected {
                 // Refer to specs. §4.8 for more information.
-                return self.on_high_seqnum(&*msg);
+                return self.on_high_seqnum(msg);
             }
             n
         } else {
             // See §4.5.3.
-            return self.on_missing_seqnum(&*msg);
+            return self.on_missing_seqnum(msg);
         };
 
         // Increment immediately.
         self.msg_seq_num_inbound.next();
 
-        if self.verifier().verify_sending_time(&*msg).is_err() {
-            return self.make_reject_for_inaccurate_sending_time(&*msg);
+        if self.verifier().verify_sending_time(msg).is_err() {
+            return self.make_reject_for_inaccurate_sending_time(msg);
         }
 
         let msg_type = if let Ok(x) = msg.fv::<Cow<[u8]>>(MSG_TYPE) {
             x
         } else {
-            self.on_inbound_app_message(&*msg).ok();
-            return self.on_application_message(&*msg);
+            self.on_inbound_app_message(msg).ok();
+            return self.on_application_message(msg);
         };
-        self.dispatch_by_msg_type(&*msg_type, &*msg)
+        self.dispatch_by_msg_type(&*msg_type, msg)
     }
 
-    fn on_resend_request(&mut self, msg: &CowMessage<[u8]>) {
+    fn on_resend_request(&self, msg: &CowMessage<[u8]>) {
         let begin_seq_num = msg.fv(BEGIN_SEQ_NO).unwrap();
         let end_seq_num = msg.fv(END_SEQ_NO).unwrap();
         self.make_resend_request(begin_seq_num, end_seq_num);
     }
 
-    fn on_logout(&mut self, logout_msg: Option<&[u8]>) -> &[u8] {
+    fn on_logout(&self, logout_msg: Option<&[u8]>) -> &[u8] {
         let logout_msg = logout_msg.unwrap_or(b"Logout");
 
         let fix_message = {
@@ -374,7 +374,7 @@ where
         fix_message.0
     }
 
-    fn on_heartbeat_is_due(&mut self) -> &[u8] {
+    fn on_heartbeat_is_due(&self) -> &[u8] {
         let fix_message = {
             let begin_string = self.config.begin_string();
             let msg_seq_num = self.msg_seq_num_outbound.next();
@@ -407,7 +407,7 @@ where
         todo!();
     }
 
-    fn on_test_request(&mut self, msg: CowMessage<[u8]>) -> &[u8] {
+    fn on_test_request(&self, msg: CowMessage<[u8]>) -> &[u8] {
         let test_req_id = msg.fv::<&[u8]>(TEST_REQ_ID).unwrap();
         let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
@@ -421,7 +421,7 @@ where
         msg.done().0
     }
 
-    fn on_wrong_environment(&mut self, _message: CowMessage<[u8]>) -> Response {
+    fn on_wrong_environment(&self, _message: CowMessage<[u8]>) -> Response {
         self.make_logout(errs::production_env())
     }
 
@@ -439,16 +439,16 @@ where
         msg.done().0
     }
 
-    fn on_missing_seqnum(&mut self, _message: CowMessage<[u8]>) -> Response {
+    fn on_missing_seqnum(&self, _message: CowMessage<[u8]>) -> Response {
         self.make_logout(errs::missing_field("MsgSeqNum", MSG_SEQ_NUM))
     }
 
-    fn on_low_seqnum(&mut self, _message: CowMessage<[u8]>) -> Response {
+    fn on_low_seqnum(&self, _message: CowMessage<[u8]>) -> Response {
         self.make_logout(errs::msg_seq_num(self.msg_seq_num_inbound.0 + 1))
     }
 
     fn on_reject(
-        &mut self,
+        &self,
         _ref_seq_num: u64,
         ref_tag: Option<u32>,
         ref_msg_type: Option<&[u8]>,
@@ -518,13 +518,13 @@ where
         Response::OutboundBytes(msg.done().0.into())
     }
 
-    fn on_high_seqnum(&mut self, msg: CowMessage<[u8]>) -> Response {
+    fn on_high_seqnum(&self, msg: CowMessage<[u8]>) -> Response {
         let msg_seq_num = msg.fv(MSG_SEQ_NUM).unwrap();
         self.make_resend_request(self.seq_numbers().next_inbound(), msg_seq_num);
         todo!()
     }
 
-    fn on_logon(&mut self, _logon: CowMessage<[u8]>) {
+    fn on_logon(&self, _logon: CowMessage<[u8]>) {
         let begin_string = self.config.begin_string();
         let mut msg = self
             .encoder

@@ -556,14 +556,14 @@ impl MessageBuilder {
 //     pub msg_seq_num: u32,
 // }
 
-pub trait FixConnector<'a, B, C, V = MockedVerifyImplementation>
+pub trait FixConnector<B, C, V = MockedVerifyImplementation>
 where
     B: Backend,
     C: Configure,
     V: Verify,
 {
-    type Error: FixValue<'a>;
-    type Msg: FvWrite<'a>;
+    type Error<'a>: FixValue<'a>;
+    type Msg<'a>: FvWrite<'a>;
 
     fn target_comp_id(&self) -> &[u8];
 

@@ -82,6 +82,7 @@
 //! - [`https://github.com/FIXTradingCommunity`](https://github.com/FIXTradingCommunity).
 //! - [`https://forum.fixtrading.org`](https://forum.fixtrading.org).
 
+#![feature(generic_associated_types)]
 #![doc(html_root_url = "https://docs.rs/fefix/")]
 // #![warn(missing_docs)] // FIXME
 #![deny(

@@ -289,7 +289,7 @@ where
     ///
     /// Panics if [`DecoderBuffered::parse()`] didn't return [`Ok(Some(()))`].
     #[inline]
-    pub fn message(&self) -> Message<&[u8]> {
+    pub fn message(&self) -> Message<Cow<[u8]>> {
         assert!(self.is_ready);
 
         Message {

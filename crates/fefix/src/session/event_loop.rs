@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use crate::tagvalue::{DecodeError, DecoderBuffered, Message};
 use futures::select;
 use futures::{AsyncRead, AsyncReadExt, FutureExt};
@@ -129,7 +130,7 @@ where
 #[derive(Debug)]
 pub enum LlEvent<'a> {
     /// Incoming FIX message.
-    Message(Message<'a, &'a [u8]>),
+    Message(Message<'a, Cow<'a, [u8]>>),
     /// Tried to parse an incoming FIX message, but got illegal data.
     BadMessage(DecodeError),
     /// I/O error at the transport layer.

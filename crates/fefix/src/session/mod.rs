@@ -23,8 +23,8 @@ pub use heartbeat_rule::HeartbeatRule;
 pub use resend_request_range::ResendRequestRange;
 pub use seq_numbers::{SeqNumberError, SeqNumbers};
 
-use crate::{tagvalue::Message, FixValue, SetField};
-use std::ops::Range;
+use crate::{tagvalue::CowMessage, FixValue, SetField};
+use std::{ops::Range, rc::Rc};
 
 /// The owner of a [`FixConnection`]. It can react to events, store incoming
 /// messages, send messages, etc..
@@ -54,7 +54,7 @@ pub trait Backend: Clone {
     }
 
     /// Callback for processing incoming FIX application messages.
-    fn on_inbound_app_message(&mut self, message: Message<&[u8]>) -> Result<(), Self::Error>;
+    fn on_inbound_app_message(&mut self, message: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error>;
 
     /// Callback for post-processing outbound FIX messages.
     fn on_outbound_message(&mut self, message: &[u8]) -> Result<(), Self::Error>;
@@ -63,7 +63,7 @@ pub trait Backend: Clone {
     #[inline]
     fn on_inbound_message(
         &mut self,
-        message: Message<&[u8]>,
+        message: Rc<CowMessage<[u8]>>,
         is_app: bool,
     ) -> Result<(), Self::Error> {
         if is_app {

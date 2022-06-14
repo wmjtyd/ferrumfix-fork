@@ -243,8 +243,8 @@ where
     B: Backend,
     C: Configure,
 {
-    type Error<'a> = &'a [u8];
-    type Msg<'a> = EncoderHandle<'a, Vec<u8>>;
+    type Error<'a> = Cow<'a, [u8]> where B: 'a, C: 'a;
+    type Msg<'a> = EncoderHandle<'a, Vec<u8>> where B: 'a, C: 'a;
 
     fn on_inbound_app_message(&self, message: Message<&[u8]>) -> Result<(), Self::Error<'_>> {
         todo!()

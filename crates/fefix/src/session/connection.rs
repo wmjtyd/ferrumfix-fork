@@ -1,7 +1,7 @@
 use super::{errs, Backend, Config, Configure, LlEvent, LlEventLoop};
 use crate::random_field_access::RandomFieldAccess;
 use crate::session::{Environment, SeqNumbers};
-use crate::tagvalue::{FvWrite, EncoderWithBuffer};
+use crate::tagvalue::FvWrite;
 use crate::tagvalue::CowMessage;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
 use crate::{FixValue, Buffer};
@@ -389,40 +389,46 @@ where
         self.make_resend_request(begin_seq_num, end_seq_num);
     }
 
-    fn on_logout(&self, logout_msg: Option<&[u8]>) -> &[u8] {
+    fn on_logout(&self, logout_msg: Option<&[u8]>) -> Cow<[u8]> {
         let logout_msg = logout_msg.unwrap_or(b"Logout");
 
-        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
+        let mut encoder = self.encoder.borrow_mut();
+        let mut buf = self.buffer.take();
         let fix_message = {
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let begin_string = self.config.begin_string();
-            let mut msg = self
-                .encoder
-                .borrow_mut()
-                .start_message(begin_string, buf, b"5");
+            let mut msg = encoder
+                .start_message(begin_string, &mut buf, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, logout_msg);
             msg.done()
         };
-        fix_message.0
+
+        let fix_message = fix_message.0;
+        self.buffer.replace(buf);
+
+        fix_message.into()
     }
 
-    fn on_heartbeat_is_due(&self) -> &[u8] {
-        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
+    fn on_heartbeat_is_due(&self) -> Cow<[u8]> {
+        let mut encoder = self.encoder.borrow_mut();
+        let mut buf = self.buffer.take();
         let fix_message = {
             let begin_string = self.config.begin_string();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let mut msg = self
-                .encoder
-                .borrow_mut()
-                .start_message(begin_string, buf, b"0");
+            let mut msg = encoder
+                .start_message(begin_string, &mut buf, b"0");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             self.set_sending_time(&mut msg);
             msg.done()
         };
-        fix_message.0
+
+        let fix_message = fix_message.0;
+        self.buffer.replace(buf);
+
+        fix_message.into()
     }
 
     fn set_sender_and_target<'a>(&self, msg: &mut impl FvWrite<'a, Key = u32>) {
@@ -443,20 +449,23 @@ where
         todo!();
     }
 
-    fn on_test_request(&self, msg: Rc<CowMessage<[u8]>>) -> &[u8] {
+    fn on_test_request(&self, msg: Rc<CowMessage<[u8]>>) -> Cow<[u8]> {
         let test_req_id = msg.fv::<&[u8]>(TEST_REQ_ID).unwrap();
         let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
-        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
-        let mut msg = self
-            .encoder
-            .borrow_mut()
-            .start_message(begin_string, buf, b"1");
+        let mut buf = self.buffer.take();
+        let mut encoder = self.encoder.borrow_mut();
+        let mut msg = encoder
+            .start_message(begin_string, &mut buf, b"1");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         self.set_sending_time(&mut msg);
         msg.set_fv_with_key(&TEST_REQ_ID, test_req_id);
-        msg.done().0
+        // msg.done().0
+
+        let complated_message: Vec<u8> = msg.done().0.into();
+        self.buffer.replace(buf);
+        complated_message.into()
     }
 
     fn on_wrong_environment(&self, _message: Rc<CowMessage<[u8]>>) -> Response {
@@ -659,7 +668,7 @@ where
 
     fn on_resend_request(&self, msg: &Rc<CowMessage<[u8]>>);
 
-    fn on_logout(&self, logout_msg: Option<&[u8]>) -> &[u8];
+    fn on_logout(&self, logout_msg: Option<&[u8]>) -> Cow<[u8]>;
 
     //    fn add_seqnum(&self, msg: &mut RawEncoderState) {
     //        msg.add_field(tags::MSG_SEQ_NUM, self.seq_numbers().next_outbound());
@@ -671,7 +680,7 @@ where
     //    }
     //
     //    #[must_use]
-    fn on_heartbeat_is_due(&self) -> &[u8];
+    fn on_heartbeat_is_due(&self) -> Cow<[u8]>;
 
     fn set_sender_and_target<'a>(&self, msg: &mut impl FvWrite<'a, Key = u32>);
 
@@ -681,7 +690,7 @@ where
 
     fn on_heartbeat(&self, _msg: Rc<CowMessage<[u8]>>);
 
-    fn on_test_request(&self, msg: Rc<CowMessage<[u8]>>) -> &[u8];
+    fn on_test_request(&self, msg: Rc<CowMessage<[u8]>>) -> Cow<[u8]>;
 
     fn on_wrong_environment(&self, _message: Rc<CowMessage<[u8]>>) -> Response;
 

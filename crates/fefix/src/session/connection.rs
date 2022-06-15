@@ -1,10 +1,10 @@
 use super::{errs, Backend, Config, Configure, LlEvent, LlEventLoop};
 use crate::random_field_access::RandomFieldAccess;
 use crate::session::{Environment, SeqNumbers};
-use crate::tagvalue::FvWrite;
+use crate::tagvalue::{FvWrite, EncoderWithBuffer};
 use crate::tagvalue::CowMessage;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
-use crate::FixValue;
+use crate::{FixValue, Buffer};
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -463,20 +463,23 @@ where
         self.make_logout(errs::production_env())
     }
 
-    fn generate_error_seqnum_too_low(&mut self) -> &[u8] {
+    fn generate_error_seqnum_too_low(&mut self) -> Cow<[u8]> {
         let begin_string = self.config.begin_string();
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let text = errs::msg_seq_num(self.msg_seq_num_inbound.next());
-        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
-        let mut msg = self
-            .encoder
-            .borrow_mut()
-            .start_message(begin_string, buf, b"FIXME");
+        let mut buf = self.buffer.take();
+        let mut encoder = self.encoder.borrow_mut();
+        let mut msg = encoder
+            .start_message(begin_string, &mut buf, b"FIXME");
         msg.set_fv_with_key(&MSG_TYPE, "5");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         msg.set_fv_with_key(&TEXT, text.as_str());
-        msg.done().0
+
+        let completed_message: Vec<u8> = msg.done().0.into();
+        self.buffer.replace(buf);
+
+        completed_message.into()
     }
 
     fn on_missing_seqnum(&self, _message: Rc<CowMessage<[u8]>>) -> Response {
@@ -496,14 +499,13 @@ where
         err_text: String,
     ) -> Response {
         let begin_string = self.config.begin_string();
-        let sender_comp_id = self.sender_comp_id();
-        let target_comp_id = self.target_comp_id();
+        // let sender_comp_id = self.sender_comp_id();
+        // let target_comp_id = self.target_comp_id();
         let msg_seq_num = self.msg_seq_num_outbound.next();
-        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
-        let mut msg = self
-            .encoder
-            .borrow_mut()
-            .start_message(begin_string, buf, b"3");
+        let mut buf = self.buffer.take();
+        let mut encoder = self.encoder.borrow_mut();
+        let mut msg = encoder
+            .start_message(begin_string, &mut buf, b"3");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         if let Some(ref_tag) = ref_tag {
@@ -514,7 +516,10 @@ where
         }
         msg.set_fv_with_key(&SESSION_REJECT_REASON, reason);
         msg.set_fv_with_key(&TEXT, err_text.as_str());
-        Response::OutboundBytes(msg.done().0.into())
+        
+        let completed_message: Vec<u8> = msg.done().0.into();
+        self.buffer.replace(buf);
+        Response::OutboundBytes(completed_message.into())
     }
 
     fn make_reject_for_inaccurate_sending_time(&self, offender: Rc<CowMessage<[u8]>>) -> Response {
@@ -530,38 +535,42 @@ where
     }
 
     fn make_logout(&self, text: String) -> Response {
-        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
+        let mut encoder = self.encoder.borrow_mut();
+        let mut buf = self.buffer.take();
         let fix_message = {
             let begin_string = self.config.begin_string();
-            let sender_comp_id = self.sender_comp_id();
-            let target_comp_id = self.target_comp_id();
+            // let sender_comp_id = self.sender_comp_id();
+            // let target_comp_id = self.target_comp_id();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let mut msg = self
-                .encoder
-                .borrow_mut()
-                .start_message(begin_string, buf, b"5");
+            let mut msg = encoder
+                .start_message(begin_string, &mut buf, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, text.as_str());
             self.set_sending_time(&mut msg);
             msg.done()
         };
-        Response::OutboundBytes(fix_message.0.into())
+
+        let completed_message: Vec<u8> = fix_message.0.into();
+        self.buffer.replace(buf);
+        Response::OutboundBytes(completed_message.into())
     }
 
-    fn make_resend_request(&self, start: u64, end: u64) -> Response {
+    fn make_resend_request<'a>(&'a self, start: u64, end: u64) -> Response<'a> {
         let begin_string = self.config.begin_string();
-        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
-        let mut msg = self
-            .encoder
-            .borrow_mut()
-            .start_message(begin_string, buf, b"2");
-        //Self::add_comp_id(msg);
-        //self.add_sending_time(msg);
-        //self.add_seqnum(msg);
+        let mut encoder = self.encoder.borrow_mut();
+        let mut buf = self.buffer.take();
+        let mut msg = encoder
+            .start_message(begin_string, &mut buf, b"2");
+            //Self::add_comp_id(msg);
+            //self.add_sending_time(msg);
+            //self.add_seqnum(msg);
         msg.set_fv_with_key(&BEGIN_SEQ_NO, start);
         msg.set_fv_with_key(&END_SEQ_NO, end);
-        Response::OutboundBytes(msg.done().0.into())
+        let completed_message: Vec<u8> = msg.done().0.into();
+        self.buffer.replace(buf);
+
+        Response::OutboundBytes(completed_message.into())
     }
 
     fn on_high_seqnum(&self, msg: Rc<CowMessage<[u8]>>) -> Response {
@@ -572,11 +581,10 @@ where
 
     fn on_logon(&self, _logon: Rc<CowMessage<[u8]>>) {
         let begin_string = self.config.begin_string();
-        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
-        let mut msg = self
-            .encoder
-            .borrow_mut()
-            .start_message(begin_string, buf, b"A");
+        let mut encoder = self.encoder.borrow_mut();
+        let mut buf = self.buffer.take();
+        encoder.start_message(begin_string, &mut buf, b"A");
+        self.buffer.replace(buf);
         //Self::add_comp_id(msg);
         //self.add_sending_time(msg);
         //self.add_sending_time(msg);
@@ -676,7 +684,8 @@ where
     fn on_test_request(&self, msg: Rc<CowMessage<[u8]>>) -> &[u8];
 
     fn on_wrong_environment(&self, _message: Rc<CowMessage<[u8]>>) -> Response;
-    fn generate_error_seqnum_too_low(&mut self) -> &[u8];
+
+    fn generate_error_seqnum_too_low(&mut self) -> Cow<[u8]>;
 
     fn on_missing_seqnum(&self, _message: Rc<CowMessage<[u8]>>) -> Response {
         self.make_logout(errs::missing_field("MsgSeqNum", MSG_SEQ_NUM))

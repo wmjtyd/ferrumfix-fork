@@ -157,14 +157,14 @@ where
         let encoder = self.encoder.clone();
         let mut encoder_ref = encoder.borrow_mut();
 
+        let mut buf = self.buffer.borrow_mut();
         let logon = {
             let begin_string = self.config.begin_string();
             let sender_comp_id = self.config.sender_comp_id();
             let target_comp_id = self.config.target_comp_id();
             let heartbeat = self.config.heartbeat().as_secs();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let buf_mut = self.buffer.borrow();
-            let buf: &mut Vec<u8> = buf_mut.as_mut();
+            let buf:&mut Vec<u8> = buf.as_mut();
             let mut msg = encoder_ref
                 .start_message(begin_string, buf, b"A");
             msg.set_fv_with_key(&SENDER_COMP_ID, sender_comp_id);
@@ -318,7 +318,7 @@ where
         todo!()
     }
 
-    fn dispatch_by_msg_type<'a>(&'a mut self, msg_type: &[u8], msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a> {
+    fn dispatch_by_msg_type<'a>(&'a self, msg_type: &[u8], msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a> {
         match msg_type {
             b"A" => {
                 self.on_logon(msg);
@@ -347,7 +347,7 @@ where
     fn on_inbound_message<'a>(
         &'a self,
         msg: Rc<CowMessage<'a, [u8]>>,
-        builder: MessageBuilder,
+        _builder: MessageBuilder,
     ) -> Response<'a> {
         if self.verifier().verify_test_message_indicator(msg.clone()).is_err() {
             return self.on_wrong_environment(msg);
@@ -392,10 +392,10 @@ where
     fn on_logout(&self, logout_msg: Option<&[u8]>) -> &[u8] {
         let logout_msg = logout_msg.unwrap_or(b"Logout");
 
+        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
         let fix_message = {
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let begin_string = self.config.begin_string();
-            let buf: &mut Vec<u8> = self.buffer.borrow().as_mut();
             let mut msg = self
                 .encoder
                 .borrow_mut()
@@ -409,10 +409,10 @@ where
     }
 
     fn on_heartbeat_is_due(&self) -> &[u8] {
+        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
         let fix_message = {
             let begin_string = self.config.begin_string();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
             let mut msg = self
                 .encoder
                 .borrow_mut()
@@ -530,12 +530,12 @@ where
     }
 
     fn make_logout(&self, text: String) -> Response {
+        let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
         let fix_message = {
             let begin_string = self.config.begin_string();
             let sender_comp_id = self.sender_comp_id();
             let target_comp_id = self.target_comp_id();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let buf: &mut Vec<u8> = self.buffer.borrow_mut().as_mut();
             let mut msg = self
                 .encoder
                 .borrow_mut()
@@ -627,7 +627,7 @@ where
 
     fn verifier(&self) -> V;
 
-    fn dispatch_by_msg_type<'a>(&'a mut self, msg_type: &[u8], msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a>;
+    fn dispatch_by_msg_type<'a>(&'a self, msg_type: &[u8], msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a>;
 
     /// Callback for processing incoming FIX application messages.
     fn on_inbound_app_message(&self, message: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error<'_>>;

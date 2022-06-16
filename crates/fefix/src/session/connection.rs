@@ -4,7 +4,7 @@ use crate::session::{Environment, SeqNumbers};
 use crate::tagvalue::FvWrite;
 use crate::tagvalue::CowMessage;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
-use crate::{FixValue, Buffer};
+use crate::FixValue;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -256,6 +256,7 @@ pub trait Verify {
 /// The mocked [`Verify`] implementation.
 ///
 /// This implementation is used for testing.
+#[derive(Debug)]
 pub struct MockedVerifyImplementation;
 
 impl Verify for MockedVerifyImplementation {
@@ -405,7 +406,7 @@ where
             msg.done()
         };
 
-        let fix_message = fix_message.0;
+        let fix_message: Vec<u8> = fix_message.0.to_vec();
         self.buffer.replace(buf);
 
         fix_message.into()
@@ -425,7 +426,7 @@ where
             msg.done()
         };
 
-        let fix_message = fix_message.0;
+        let fix_message: Vec<u8> = fix_message.0.to_vec();
         self.buffer.replace(buf);
 
         fix_message.into()
@@ -604,8 +605,10 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct MessageBuilder {}
 
+#[derive(Debug)]
 pub struct MessageBuiderTuple<'a> {
     phantom: PhantomData<&'a ()>,
 }

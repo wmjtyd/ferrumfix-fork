@@ -158,29 +158,35 @@ where
         I: AsyncRead + Unpin,
         O: AsyncWrite + Unpin,
     {
-        let encoder = self.encoder.clone();
-        let mut encoder_ref = encoder.borrow_mut();
-
-        let mut buf = self.buffer.borrow_mut();
         let logon = {
-            let begin_string = self.config.begin_string();
-            let sender_comp_id = self.config.sender_comp_id();
-            let target_comp_id = self.config.target_comp_id();
-            let heartbeat = self.config.heartbeat().as_secs();
-            let msg_seq_num = self.msg_seq_num_outbound.next();
-            let buf:&mut Vec<u8> = buf.as_mut();
-            let mut msg = encoder_ref
-                .start_message(begin_string, buf, b"A");
-            msg.set_fv_with_key(&SENDER_COMP_ID, sender_comp_id);
-            msg.set_fv_with_key(&TARGET_COMP_ID, target_comp_id);
-            msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now().timestamp_millis());
-            msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
-            msg.set_fv_with_key(&ENCRYPT_METHOD, 0);
-            msg.set_fv_with_key(&108, heartbeat);
-            msg.done()
+            let encoder = self.encoder.clone();
+            let mut encoder_ref = encoder.borrow_mut();
+
+            let mut buf = self.buffer.borrow_mut();
+            let logon: Vec<u8> = {
+                let begin_string = self.config.begin_string();
+                let sender_comp_id = self.config.sender_comp_id();
+                let target_comp_id = self.config.target_comp_id();
+                let heartbeat = self.config.heartbeat().as_secs();
+                let msg_seq_num = self.msg_seq_num_outbound.next();
+                let buf:&mut Vec<u8> = buf.as_mut();
+                let mut msg = encoder_ref
+                    .start_message(begin_string, buf, b"A");
+                msg.set_fv_with_key(&SENDER_COMP_ID, sender_comp_id);
+                msg.set_fv_with_key(&TARGET_COMP_ID, target_comp_id);
+                msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now().timestamp_millis());
+                msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
+                msg.set_fv_with_key(&ENCRYPT_METHOD, 0);
+                msg.set_fv_with_key(&108, heartbeat);
+                msg.done()
+            }.0.into();
+
+            logon
         };
-        output.write_all(logon.0).await.unwrap();
-        self.backend.on_outbound_message(logon.0).ok();
+        
+        output.write_all(&logon).await.unwrap();
+        self.backend.on_outbound_message(&logon).ok();
+
         let logon;
         loop {
             let mut input = Pin::new(&mut input);
@@ -234,8 +240,7 @@ where
                     // Clone it to workaround mutable issue.
                     let heartbeat = self
                         .on_heartbeat_is_due()
-                        .iter()
-                        .map(|x| *x)
+                        .iter().copied()
                         .collect::<Vec<u8>>();
                     output.write_all(&heartbeat).await.unwrap();
                     self.on_outbound_message(&heartbeat).ok();
@@ -327,24 +332,24 @@ where
         match msg_type {
             b"A" => {
                 self.on_logon(msg);
-                return Response::None;
+                Response::None
             }
             b"1" => {
                 let msg = self.on_test_request(msg);
-                return Response::OutboundBytes(msg);
+                Response::OutboundBytes(msg)
             }
             b"2" => {
-                return Response::None;
+                Response::None
             }
             b"5" => {
-                return Response::OutboundBytes(self.on_logout(None));
+                Response::OutboundBytes(self.on_logout(None))
             }
             b"0" => {
                 self.on_heartbeat(msg);
-                return Response::ResetHeartbeat;
+                Response::ResetHeartbeat
             }
             _ => {
-                return self.on_application_message(msg);
+                self.on_application_message(msg)
             }
         }
     }
@@ -360,13 +365,16 @@ where
 
         let seq_num = if let Ok(n) = msg.fv::<u64>(MSG_SEQ_NUM) {
             let expected = self.msg_seq_num_inbound.expected();
-            if n < expected {
-                return self.on_low_seqnum(msg);
-            } else if n > expected {
+
+            // n - expected < 0 → n is lower;
+            // n - expected > 0 → n is higher.
+
+            match n.cmp(&expected) {
+                std::cmp::Ordering::Less => return self.on_low_seqnum(msg),
+                std::cmp::Ordering::Equal => n,
                 // Refer to specs. §4.8 for more information.
-                return self.on_high_seqnum(msg);
+                std::cmp::Ordering::Greater => return self.on_high_seqnum(msg),
             }
-            n
         } else {
             // See §4.5.3.
             return self.on_missing_seqnum(msg);

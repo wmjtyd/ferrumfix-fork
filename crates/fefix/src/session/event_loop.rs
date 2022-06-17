@@ -1,8 +1,8 @@
-use std::borrow::Cow;
 use crate::tagvalue::{DecodeError, DecoderBuffered, Message};
 use futures::select;
 use futures::{AsyncRead, AsyncReadExt, FutureExt};
 use futures_timer::Delay;
+use std::borrow::Cow;
 use std::io;
 use std::time::Duration;
 use std::time::Instant;

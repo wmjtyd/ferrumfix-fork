@@ -1,8 +1,8 @@
 use super::{errs, Backend, Config, Configure, LlEvent, LlEventLoop};
 use crate::random_field_access::RandomFieldAccess;
 use crate::session::{Environment, SeqNumbers};
-use crate::tagvalue::FvWrite;
 use crate::tagvalue::CowMessage;
+use crate::tagvalue::FvWrite;
 use crate::tagvalue::{DecoderBuffered, Encoder, EncoderHandle};
 use crate::FixValue;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -33,8 +33,6 @@ const SESSION_REJECT_REASON: u32 = 373;
 const TEST_MESSAGE_INDICATOR: u32 = 464;
 
 const SENDING_TIME_ACCURACY_PROBLEM: u32 = 10;
-
-
 
 // type CowMessage<'a, T> = Message<'a, Cow<'a, T>>;
 
@@ -169,9 +167,8 @@ where
                 let target_comp_id = self.config.target_comp_id();
                 let heartbeat = self.config.heartbeat().as_secs();
                 let msg_seq_num = self.msg_seq_num_outbound.next();
-                let buf:&mut Vec<u8> = buf.as_mut();
-                let mut msg = encoder_ref
-                    .start_message(begin_string, buf, b"A");
+                let buf: &mut Vec<u8> = buf.as_mut();
+                let mut msg = encoder_ref.start_message(begin_string, buf, b"A");
                 msg.set_fv_with_key(&SENDER_COMP_ID, sender_comp_id);
                 msg.set_fv_with_key(&TARGET_COMP_ID, target_comp_id);
                 msg.set_fv_with_key(&SENDING_TIME, chrono::Utc::now().timestamp_millis());
@@ -179,11 +176,13 @@ where
                 msg.set_fv_with_key(&ENCRYPT_METHOD, 0);
                 msg.set_fv_with_key(&108, heartbeat);
                 msg.done()
-            }.0.into();
+            }
+            .0
+            .into();
 
             logon
         };
-        
+
         output.write_all(&logon).await.unwrap();
         self.backend.on_outbound_message(&logon).ok();
 
@@ -240,7 +239,8 @@ where
                     // Clone it to workaround mutable issue.
                     let heartbeat = self
                         .on_heartbeat_is_due()
-                        .iter().copied()
+                        .iter()
+                        .copied()
                         .collect::<Vec<u8>>();
                     output.write_all(&heartbeat).await.unwrap();
                     self.on_outbound_message(&heartbeat).ok();
@@ -328,7 +328,11 @@ where
         todo!()
     }
 
-    fn dispatch_by_msg_type<'a>(&'a self, msg_type: &[u8], msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a> {
+    fn dispatch_by_msg_type<'a>(
+        &'a self,
+        msg_type: &[u8],
+        msg: Rc<CowMessage<'a, [u8]>>,
+    ) -> Response<'a> {
         match msg_type {
             b"A" => {
                 self.on_logon(msg);
@@ -338,19 +342,13 @@ where
                 let msg = self.on_test_request(msg);
                 Response::OutboundBytes(msg)
             }
-            b"2" => {
-                Response::None
-            }
-            b"5" => {
-                Response::OutboundBytes(self.on_logout(None))
-            }
+            b"2" => Response::None,
+            b"5" => Response::OutboundBytes(self.on_logout(None)),
             b"0" => {
                 self.on_heartbeat(msg);
                 Response::ResetHeartbeat
             }
-            _ => {
-                self.on_application_message(msg)
-            }
+            _ => self.on_application_message(msg),
         }
     }
 
@@ -359,7 +357,11 @@ where
         msg: Rc<CowMessage<'a, [u8]>>,
         _builder: MessageBuilder,
     ) -> Response<'a> {
-        if self.verifier().verify_test_message_indicator(msg.clone()).is_err() {
+        if self
+            .verifier()
+            .verify_test_message_indicator(msg.clone())
+            .is_err()
+        {
             return self.on_wrong_environment(msg);
         }
 
@@ -410,8 +412,7 @@ where
         let fix_message = {
             let msg_seq_num = self.msg_seq_num_outbound.next();
             let begin_string = self.config.begin_string();
-            let mut msg = encoder
-                .start_message(begin_string, &mut buf, b"5");
+            let mut msg = encoder.start_message(begin_string, &mut buf, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, logout_msg);
@@ -430,8 +431,7 @@ where
         let fix_message = {
             let begin_string = self.config.begin_string();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let mut msg = encoder
-                .start_message(begin_string, &mut buf, b"0");
+            let mut msg = encoder.start_message(begin_string, &mut buf, b"0");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             self.set_sending_time(&mut msg);
@@ -468,8 +468,7 @@ where
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let mut buf = self.buffer.take();
         let mut encoder = self.encoder.borrow_mut();
-        let mut msg = encoder
-            .start_message(begin_string, &mut buf, b"1");
+        let mut msg = encoder.start_message(begin_string, &mut buf, b"1");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         self.set_sending_time(&mut msg);
@@ -491,8 +490,7 @@ where
         let text = errs::msg_seq_num(self.msg_seq_num_inbound.next());
         let mut buf = self.buffer.take();
         let mut encoder = self.encoder.borrow_mut();
-        let mut msg = encoder
-            .start_message(begin_string, &mut buf, b"FIXME");
+        let mut msg = encoder.start_message(begin_string, &mut buf, b"FIXME");
         msg.set_fv_with_key(&MSG_TYPE, "5");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
@@ -526,8 +524,7 @@ where
         let msg_seq_num = self.msg_seq_num_outbound.next();
         let mut buf = self.buffer.take();
         let mut encoder = self.encoder.borrow_mut();
-        let mut msg = encoder
-            .start_message(begin_string, &mut buf, b"3");
+        let mut msg = encoder.start_message(begin_string, &mut buf, b"3");
         self.set_sender_and_target(&mut msg);
         msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
         if let Some(ref_tag) = ref_tag {
@@ -538,7 +535,7 @@ where
         }
         msg.set_fv_with_key(&SESSION_REJECT_REASON, reason);
         msg.set_fv_with_key(&TEXT, err_text.as_str());
-        
+
         let completed_message: Vec<u8> = msg.done().0.into();
         self.buffer.replace(buf);
         Response::OutboundBytes(completed_message.into())
@@ -564,8 +561,7 @@ where
             // let sender_comp_id = self.sender_comp_id();
             // let target_comp_id = self.target_comp_id();
             let msg_seq_num = self.msg_seq_num_outbound.next();
-            let mut msg = encoder
-                .start_message(begin_string, &mut buf, b"5");
+            let mut msg = encoder.start_message(begin_string, &mut buf, b"5");
             self.set_sender_and_target(&mut msg);
             msg.set_fv_with_key(&MSG_SEQ_NUM, msg_seq_num);
             msg.set_fv_with_key(&TEXT, text.as_str());
@@ -582,11 +578,10 @@ where
         let begin_string = self.config.begin_string();
         let mut encoder = self.encoder.borrow_mut();
         let mut buf = self.buffer.take();
-        let mut msg = encoder
-            .start_message(begin_string, &mut buf, b"2");
-            //Self::add_comp_id(msg);
-            //self.add_sending_time(msg);
-            //self.add_seqnum(msg);
+        let mut msg = encoder.start_message(begin_string, &mut buf, b"2");
+        //Self::add_comp_id(msg);
+        //self.add_sending_time(msg);
+        //self.add_seqnum(msg);
         msg.set_fv_with_key(&BEGIN_SEQ_NO, start);
         msg.set_fv_with_key(&END_SEQ_NO, end);
         let completed_message: Vec<u8> = msg.done().0.into();
@@ -650,8 +645,12 @@ where
     C: Configure,
     V: Verify,
 {
-    type Error<'a>: FixValue<'a> where Self: 'a;
-    type Msg<'a>: FvWrite<'a> where Self: 'a;
+    type Error<'a>: FixValue<'a>
+    where
+        Self: 'a;
+    type Msg<'a>: FvWrite<'a>
+    where
+        Self: 'a;
 
     fn target_comp_id(&self) -> &[u8];
 
@@ -659,7 +658,11 @@ where
 
     fn verifier(&self) -> V;
 
-    fn dispatch_by_msg_type<'a>(&'a self, msg_type: &[u8], msg: Rc<CowMessage<'a, [u8]>>) -> Response<'a>;
+    fn dispatch_by_msg_type<'a>(
+        &'a self,
+        msg_type: &[u8],
+        msg: Rc<CowMessage<'a, [u8]>>,
+    ) -> Response<'a>;
 
     /// Callback for processing incoming FIX application messages.
     fn on_inbound_app_message(&self, message: Rc<CowMessage<[u8]>>) -> Result<(), Self::Error<'_>>;

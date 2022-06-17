@@ -52,7 +52,7 @@ mod raw_decoder;
 mod utils;
 
 pub use config::{Config, Configure};
-pub use decoder::{Decoder, DecoderBuffered, Fields, Message, CowMessage, MessageGroup};
+pub use decoder::{CowMessage, Decoder, DecoderBuffered, Fields, Message, MessageGroup};
 pub use encoder::{Encoder, EncoderHandle};
 pub use field_locator::{FieldLocator, FieldLocatorContext};
 pub use raw_decoder::{RawDecoder, RawDecoderBuffered, RawFrame};

@@ -368,9 +368,6 @@ where
         let seq_num = if let Ok(n) = msg.fv::<u64>(MSG_SEQ_NUM) {
             let expected = self.msg_seq_num_inbound.expected();
 
-            // n - expected < 0 → n is lower;
-            // n - expected > 0 → n is higher.
-
             match n.cmp(&expected) {
                 std::cmp::Ordering::Less => return self.on_low_seqnum(msg),
                 std::cmp::Ordering::Equal => n,

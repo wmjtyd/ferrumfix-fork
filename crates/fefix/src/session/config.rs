@@ -104,8 +104,8 @@ impl Default for Config {
             environment: Environment::Production { allow_test: true },
             heartbeat: Duration::from_secs(30),
             seq_numbers: SeqNumbers::new(NonZeroU64::new(1).unwrap(), NonZeroU64::new(1).unwrap()),
-            msg_seq_num_inbound: MsgSeqNumCounter::START,
-            msg_seq_num_outbound: MsgSeqNumCounter::START,
+            msg_seq_num_inbound: MsgSeqNumCounter::default(),
+            msg_seq_num_outbound: MsgSeqNumCounter::default(),
             sender_comp_id: "SENDER_COMP".to_string(),
             target_comp_id: "TARGET_COMP".to_string(),
         }

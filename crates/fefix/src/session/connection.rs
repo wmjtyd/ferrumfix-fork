@@ -42,8 +42,6 @@ const SENDING_TIME_ACCURACY_PROBLEM: u32 = 10;
 pub struct MsgSeqNumCounter(pub AtomicU64);
 
 impl MsgSeqNumCounter {
-    pub const START: Self = Self(AtomicU64::new(0));
-
     #[inline]
     pub fn next(&self) -> u64 {
         self.0.fetch_add(1, Ordering::AcqRel) + 1
@@ -57,6 +55,12 @@ impl MsgSeqNumCounter {
     #[inline]
     pub fn load(&self) -> u64 {
         self.0.load(Ordering::Acquire)
+    }
+}
+
+impl Default for MsgSeqNumCounter {
+    fn default() -> Self {
+        Self(AtomicU64::new(0))
     }
 }
 
@@ -129,8 +133,8 @@ where
             backend,
             encoder: Rc::new(RefCell::new(Encoder::default())),
             buffer: Rc::new(RefCell::new(vec![])),
-            msg_seq_num_inbound: MsgSeqNumCounter::START,
-            msg_seq_num_outbound: MsgSeqNumCounter::START,
+            msg_seq_num_inbound: MsgSeqNumCounter::default(),
+            msg_seq_num_outbound: MsgSeqNumCounter::default(),
         }
     }
 
@@ -175,7 +179,7 @@ where
             msg.set_fv_with_key(&108, heartbeat);
             msg.done()
         };
-        output.write(logon.0).await.unwrap();
+        output.write_all(logon.0).await.unwrap();
         self.backend.on_outbound_message(logon.0).ok();
         let logon;
         loop {
@@ -327,13 +331,13 @@ where
             }
             b"1" => {
                 let msg = self.on_test_request(msg);
-                return Response::OutboundBytes(msg.into());
+                return Response::OutboundBytes(msg);
             }
             b"2" => {
                 return Response::None;
             }
             b"5" => {
-                return Response::OutboundBytes(self.on_logout(None).into());
+                return Response::OutboundBytes(self.on_logout(None));
             }
             b"0" => {
                 self.on_heartbeat(msg);
@@ -566,7 +570,7 @@ where
         Response::OutboundBytes(completed_message.into())
     }
 
-    fn make_resend_request<'a>(&'a self, start: u64, end: u64) -> Response<'a> {
+    fn make_resend_request(&self, start: u64, end: u64) -> Response {
         let begin_string = self.config.begin_string();
         let mut encoder = self.encoder.borrow_mut();
         let mut buf = self.buffer.take();

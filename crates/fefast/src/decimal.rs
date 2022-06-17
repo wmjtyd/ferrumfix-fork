@@ -336,7 +336,8 @@ impl Decimal {
             0 => Self::ONE,
             1 if exp % 2 == 0 => (*self * *self).pow(exp / 2),
             1 => *self * ((*self * *self).pow(exp / 2)),
-            _ => todo!(),
+            -1 => todo!(),
+            _ => unreachable!()
         }
     }
 
